@@ -31,7 +31,7 @@ workflow.onError = {
 params.help=false
 
 def usage() {
-    println("annot_virus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,spades,minia> -w <temp_work_dir> --annotated <yes,no>") 
+    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,spades,minia> -w <temp_work_dir> --annotated <yes,no>")
 }
 
 

@@ -31,7 +31,7 @@ workflow.onError = {
 params.help=false
 
 def usage() {
-    println("annot_virus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,spades> -w <temp_work_dir> --annotated <yes,no>") 
+    println("annot_virus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,spades,minia> -w <temp_work_dir> --annotated <yes,no>") 
 }
 
 
@@ -414,7 +414,7 @@ process abundance_vp1 {
     """
     mbma.py mapping -i !{cleanDir} -o abundance \
            -db vp1contigs.index -e !{params.mail} -q fast --bowtie2 \
-           --shared -m PE -t !{params.cpus} > log.txt 2> error.txt
+           --best -m PE -t !{params.cpus} > log.txt 2> error.txt
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
     """
 }

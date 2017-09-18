@@ -196,3 +196,15 @@ sept.-18 17:34:13.680 [Task submitter] DEBUG nextflow.executor.GridTaskHandler -
 sept.-18 17:34:13.681 [Task submitter] INFO  nextflow.Session - [b0/0b65a0] Submitted process > annotation (11)
 sept.-18 17:34:16.137 [Task submitter] DEBUG nextflow.executor.GridTaskHandler - [SLURM] submitted process annotation (10) > jobId: 20141895; workDir: /pasteur/scratch/amine/amrish/3d/5f727f9d46d46432ba2a573369a28b
 sept.-18 17:34:16.138 [Task submitter] INFO  nextflow.Session - [3d/5f727f] Submitted process > annotation (10)
+sept.-18 17:39:04.358 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor slurm > tasks to be completed: 12 -- pending tasks are shown below
+~> TaskHandler[jobId: 20141858; id: 46; name: annotation (1); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/c7/8c23f9fbad0a6a67533c6254dbf7e2 started: -; exited: -; ]
+~> TaskHandler[jobId: 20141863; id: 52; name: annotation (2); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/94/7850726dd9d5610a3c017e0db878ca started: -; exited: -; ]
+~> TaskHandler[jobId: 20141866; id: 54; name: annotation (4); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/09/ad36189f4ee4777efbfe044fd313cd started: -; exited: -; ]
+~> TaskHandler[jobId: 20141869; id: 53; name: annotation (3); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/83/514875aaa47549edab5d5e93e2e15d started: -; exited: -; ]
+~> TaskHandler[jobId: 20141872; id: 64; name: annotation (5); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/e6/e09edb38d4ba401552cda828a688cb started: -; exited: -; ]
+~> TaskHandler[jobId: 20141877; id: 73; name: abundance_vp1; status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/b3/737f2a4f033198eefd4ab75769c0a6 started: -; exited: -; ]
+~> TaskHandler[jobId: 20141882; id: 75; name: annotation (7); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/28/7000479b0f62d983ed899a459c73d1 started: -; exited: -; ]
+~> TaskHandler[jobId: 20141885; id: 76; name: annotation (8); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/db/566752f1476547f53b81c79ac574da started: -; exited: -; ]
+~> TaskHandler[jobId: 20141888; id: 74; name: annotation (6); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/36/81a05c6e53f94ac5b9107176158918 started: -; exited: -; ]
+~> TaskHandler[jobId: 20141891; id: 77; name: annotation (9); status: SUBMITTED; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/a6/e6dedacd2f88538692034227387879 started: -; exited: -; ]
+.. remaining tasks omitted.

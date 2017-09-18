@@ -1,0 +1,275 @@
+sept.-18 17:00:52.011 [main] DEBUG nextflow.cli.Launcher - $> ../nextflow entvirus.nf --in /pasteur/projets/policy01/BioIT/amine/amrish/ --out /pasteur/projets/policy01/BioIT/amine/res2 --cpus 6 -c nextflow_slurm_hub.config -w /pasteur/scratch/amine/amrish --mode spades -resume
+sept.-18 17:00:52.522 [main] INFO  nextflow.cli.CmdRun - N E X T F L O W  ~  version 0.25.7
+sept.-18 17:00:52.553 [main] INFO  nextflow.cli.CmdRun - Launching `entvirus.nf` [furious_koch] - revision: 62dcb9346a
+sept.-18 17:00:52.605 [main] DEBUG nextflow.config.ConfigBuilder - User config file: nextflow_slurm_hub.config
+sept.-18 17:00:52.761 [main] DEBUG nextflow.config.ConfigBuilder - Parsing config file: /pasteur/homes/aghozlan/entvirus/nextflow_slurm_hub.config
+sept.-18 17:00:53.318 [main] DEBUG nextflow.config.ConfigBuilder - Setting config profile: 'standard'
+sept.-18 17:00:53.498 [main] DEBUG nextflow.Session - Session uuid: cceeb192-d50c-4298-a463-38b47415c307
+sept.-18 17:00:53.499 [main] DEBUG nextflow.Session - Run name: furious_koch
+sept.-18 17:00:53.503 [main] DEBUG nextflow.Session - Executor pool size: 4
+sept.-18 17:00:53.544 [main] DEBUG nextflow.cli.CmdRun - 
+  Version: 0.25.7 build 4531
+  Modified: 06-09-2017 17:25 UTC (19:25 CEST)
+  System: Linux 2.6.32-696.3.2.el6.x86_64
+  Runtime: Groovy 2.4.11 on Java HotSpot(TM) 64-Bit Server VM 1.8.0_20-b26
+  Encoding: UTF-8 (UTF-8)
+  Process: 40000@tars-submit0 [192.168.132.17]
+  CPUs: 4 - Mem: 15,7 GB (9,1 GB) - Swap: 0 (0)
+sept.-18 17:00:53.716 [main] DEBUG nextflow.Session - Work-dir: /pasteur/scratch/amine/amrish [nfs]
+sept.-18 17:00:54.203 [main] DEBUG nextflow.Session - Session start invoked
+sept.-18 17:00:54.210 [main] DEBUG nextflow.processor.TaskDispatcher - Dispatcher > start
+sept.-18 17:00:54.211 [main] DEBUG nextflow.script.ScriptRunner - > Script parsing
+sept.-18 17:00:54.836 [main] DEBUG nextflow.script.ScriptRunner - > Launching execution
+sept.-18 17:00:54.865 [main] DEBUG nextflow.Channel - files for syntax: glob; folder: /pasteur/projets/policy01/BioIT/amine/amrish/; pattern: *_R{1,2}.{fastq,fastq.dsrc2,fastq.gz}; options: null
+sept.-18 17:00:55.209 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:55.209 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:55.228 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:55.232 [main] INFO  nextflow.executor.Executor - [warm up] executor > slurm
+sept.-18 17:00:55.244 [main] DEBUG n.processor.TaskPollingMonitor - Creating task monitor for executor 'slurm' > capacity: 50; pollInterval: 5s; dumpInterval: 5m 
+sept.-18 17:00:55.248 [main] DEBUG nextflow.processor.TaskDispatcher - Starting monitor: TaskPollingMonitor
+sept.-18 17:00:55.250 [main] DEBUG n.processor.TaskPollingMonitor - >>> barrier register (monitor: slurm)
+sept.-18 17:00:55.255 [main] DEBUG nextflow.executor.Executor - Invoke register for executor: slurm
+sept.-18 17:00:55.258 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:55.314 [main] DEBUG nextflow.Session - >>> barrier register (process: filtering)
+sept.-18 17:00:55.335 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > filtering -- maxForks: 4
+sept.-18 17:00:55.717 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:55.717 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:55.718 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:55.718 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:55.720 [main] DEBUG nextflow.Session - >>> barrier register (process: trimming)
+sept.-18 17:00:55.738 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > trimming -- maxForks: 4
+sept.-18 17:00:55.769 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:55.770 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:55.771 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:55.771 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:55.774 [main] DEBUG nextflow.Session - >>> barrier register (process: khmer)
+sept.-18 17:00:55.804 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > khmer -- maxForks: 4
+sept.-18 17:00:55.820 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:55.820 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:55.820 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:55.821 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:55.822 [main] DEBUG nextflow.Session - >>> barrier register (process: assembly)
+sept.-18 17:00:55.838 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > assembly -- maxForks: 4
+sept.-18 17:00:55.860 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:55.861 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:55.861 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:55.861 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:55.862 [main] DEBUG nextflow.Session - >>> barrier register (process: blast)
+sept.-18 17:00:55.875 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > blast -- maxForks: 4
+sept.-18 17:00:55.890 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:55.890 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:55.890 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:55.891 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:55.892 [main] DEBUG nextflow.Session - >>> barrier register (process: vp1)
+sept.-18 17:00:55.906 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > vp1 -- maxForks: 4
+sept.-18 17:00:55.916 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:55.917 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:55.917 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:55.917 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:55.918 [main] DEBUG nextflow.Session - >>> barrier register (process: annotation)
+sept.-18 17:00:55.932 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > annotation -- maxForks: 4
+sept.-18 17:00:56.010 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:56.011 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:56.012 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:56.012 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:56.015 [main] DEBUG nextflow.Session - >>> barrier register (process: buildIndex)
+sept.-18 17:00:56.031 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > buildIndex -- maxForks: 4
+sept.-18 17:00:56.043 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:56.044 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:56.044 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:56.044 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:56.047 [main] DEBUG nextflow.Session - >>> barrier register (process: abundance_vp1)
+sept.-18 17:00:56.061 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > abundance_vp1 -- maxForks: 4
+sept.-18 17:00:56.074 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:56.074 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:56.074 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:56.075 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:56.077 [main] DEBUG nextflow.Session - >>> barrier register (process: combine_annotation)
+sept.-18 17:00:56.092 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > combine_annotation -- maxForks: 4
+sept.-18 17:00:56.113 [main] DEBUG nextflow.processor.ProcessFactory - << taskConfig executor: slurm
+sept.-18 17:00:56.113 [main] DEBUG nextflow.processor.ProcessFactory - >> processorType: 'slurm'
+sept.-18 17:00:56.113 [main] DEBUG nextflow.executor.Executor - Initializing executor: slurm
+sept.-18 17:00:56.114 [main] DEBUG n.executor.AbstractGridExecutor - Creating executor 'slurm' > queue-stat-interval: 1m
+sept.-18 17:00:56.116 [main] DEBUG nextflow.Session - >>> barrier register (process: summary)
+sept.-18 17:00:56.131 [main] DEBUG nextflow.processor.TaskProcessor - Creating operator > summary -- maxForks: 4
+sept.-18 17:00:56.141 [main] DEBUG nextflow.script.ScriptRunner - > Await termination 
+sept.-18 17:00:56.141 [main] DEBUG nextflow.Session - Session await
+sept.-18 17:00:56.233 [Actor Thread 2] INFO  nextflow.processor.TaskProcessor - [57/030613] Cached process > filtering (1)
+sept.-18 17:00:56.233 [Actor Thread 6] INFO  nextflow.processor.TaskProcessor - [43/325b85] Cached process > filtering (4)
+sept.-18 17:00:56.233 [Actor Thread 1] INFO  nextflow.processor.TaskProcessor - [62/b047ca] Cached process > filtering (2)
+sept.-18 17:00:56.233 [Actor Thread 5] INFO  nextflow.processor.TaskProcessor - [61/23d463] Cached process > filtering (3)
+sept.-18 17:00:56.314 [Actor Thread 1] INFO  nextflow.processor.TaskProcessor - [ef/356805] Cached process > filtering (8)
+sept.-18 17:00:56.325 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [a2/a89563] Cached process > filtering (7)
+sept.-18 17:00:56.343 [Actor Thread 5] INFO  nextflow.processor.TaskProcessor - [03/8d61d0] Cached process > filtering (5)
+sept.-18 17:00:56.356 [Actor Thread 6] INFO  nextflow.processor.TaskProcessor - [12/1f7eb0] Cached process > filtering (6)
+sept.-18 17:00:56.373 [Actor Thread 1] INFO  nextflow.processor.TaskProcessor - [a6/ce63f0] Cached process > filtering (9)
+sept.-18 17:00:56.383 [Actor Thread 2] INFO  nextflow.processor.TaskProcessor - [d7/e5694b] Cached process > trimming (1)
+sept.-18 17:00:56.388 [Actor Thread 12] INFO  nextflow.processor.TaskProcessor - [e7/3fcb4c] Cached process > trimming (3)
+sept.-18 17:00:56.389 [Actor Thread 11] INFO  nextflow.processor.TaskProcessor - [a0/c8dabf] Cached process > trimming (2)
+sept.-18 17:00:56.398 [Actor Thread 14] INFO  nextflow.processor.TaskProcessor - [78/5b2434] Cached process > filtering (10)
+sept.-18 17:00:56.400 [Actor Thread 13] INFO  nextflow.processor.TaskProcessor - [76/a4528f] Cached process > trimming (4)
+sept.-18 17:00:56.402 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [82/35c9a4] Cached process > filtering (11)
+sept.-18 17:00:56.410 [Actor Thread 9] DEBUG nextflow.Session - <<< barrier arrive (process: filtering)
+sept.-18 17:00:56.450 [Actor Thread 11] INFO  nextflow.processor.TaskProcessor - [e6/1ed3ac] Cached process > trimming (6)
+sept.-18 17:00:56.453 [Actor Thread 14] INFO  nextflow.processor.TaskProcessor - [8b/5e6650] Cached process > trimming (5)
+sept.-18 17:00:56.462 [Actor Thread 13] INFO  nextflow.processor.TaskProcessor - [3d/993f08] Cached process > trimming (7)
+sept.-18 17:00:56.463 [Actor Thread 12] INFO  nextflow.processor.TaskProcessor - [43/cc6345] Cached process > trimming (8)
+sept.-18 17:00:56.494 [Actor Thread 3] INFO  nextflow.processor.TaskProcessor - [7b/24af37] Cached process > trimming (9)
+sept.-18 17:00:56.513 [Actor Thread 13] INFO  nextflow.processor.TaskProcessor - [e8/e01b4a] Cached process > trimming (11)
+sept.-18 17:00:56.526 [Actor Thread 14] INFO  nextflow.processor.TaskProcessor - [8d/41794a] Cached process > trimming (10)
+sept.-18 17:00:56.529 [Actor Thread 10] DEBUG nextflow.Session - <<< barrier arrive (process: trimming)
+sept.-18 17:00:56.580 [Actor Thread 6] INFO  nextflow.processor.TaskProcessor - [46/00acba] Cached process > khmer (1)
+sept.-18 17:00:56.619 [Actor Thread 15] INFO  nextflow.processor.TaskProcessor - [f8/faa365] Cached process > khmer (4)
+sept.-18 17:00:56.656 [Actor Thread 5] INFO  nextflow.processor.TaskProcessor - [f9/dac9bd] Cached process > khmer (2)
+sept.-18 17:00:56.659 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [ec/ddae23] Cached process > khmer (3)
+sept.-18 17:00:56.710 [Actor Thread 6] INFO  nextflow.processor.TaskProcessor - [1b/d00f21] Cached process > khmer (5)
+sept.-18 17:00:56.746 [Actor Thread 11] INFO  nextflow.processor.TaskProcessor - [a5/6d5929] Cached process > assembly (4)
+sept.-18 17:00:56.757 [Actor Thread 3] INFO  nextflow.processor.TaskProcessor - [77/463e31] Cached process > assembly (3)
+sept.-18 17:00:56.778 [Actor Thread 8] INFO  nextflow.processor.TaskProcessor - [f1/b2a070] Cached process > assembly (1)
+sept.-18 17:00:56.780 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [73/01ae31] Cached process > khmer (8)
+sept.-18 17:00:56.784 [Actor Thread 13] INFO  nextflow.processor.TaskProcessor - [6d/7bf09f] Cached process > assembly (2)
+sept.-18 17:00:56.794 [Actor Thread 14] INFO  nextflow.processor.TaskProcessor - [64/49b80b] Cached process > khmer (7)
+sept.-18 17:00:56.865 [Actor Thread 5] INFO  nextflow.processor.TaskProcessor - [89/14f8d3] Cached process > khmer (6)
+sept.-18 17:00:56.877 [Actor Thread 11] INFO  nextflow.processor.TaskProcessor - [92/8c12aa] Cached process > assembly (5)
+sept.-18 17:00:56.892 [Actor Thread 8] INFO  nextflow.processor.TaskProcessor - [d2/43a00f] Cached process > assembly (6)
+sept.-18 17:00:56.905 [Actor Thread 13] INFO  nextflow.processor.TaskProcessor - [14/bb66fc] Cached process > assembly (7)
+sept.-18 17:00:56.938 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [7f/be0946] Cached process > blast (2)
+sept.-18 17:00:56.946 [Actor Thread 19] INFO  nextflow.processor.TaskProcessor - [1c/d761f1] Cached process > blast (4)
+sept.-18 17:00:56.954 [Actor Thread 5] INFO  nextflow.processor.TaskProcessor - [ff/70d5f2] Cached process > assembly (8)
+sept.-18 17:00:56.960 [Actor Thread 17] INFO  nextflow.processor.TaskProcessor - [aa/81e4c7] Cached process > blast (3)
+sept.-18 17:00:56.966 [Actor Thread 20] INFO  nextflow.processor.TaskProcessor - [48/996f8b] Cached process > khmer (11)
+sept.-18 17:00:56.973 [Actor Thread 16] INFO  nextflow.processor.TaskProcessor - [71/05565f] Cached process > blast (1)
+sept.-18 17:00:56.997 [Actor Thread 12] INFO  nextflow.processor.TaskProcessor - [df/a8b947] Cached process > khmer (9)
+sept.-18 17:00:57.021 [Actor Thread 18] INFO  nextflow.processor.TaskProcessor - [c3/35facf] Cached process > khmer (10)
+sept.-18 17:00:57.025 [Actor Thread 6] INFO  nextflow.processor.TaskProcessor - [b3/9ae6c6] Cached process > blast (6)
+sept.-18 17:00:57.034 [Actor Thread 4] DEBUG nextflow.Session - <<< barrier arrive (process: khmer)
+sept.-18 17:00:57.038 [Actor Thread 5] INFO  nextflow.processor.TaskProcessor - [88/db6f9d] Cached process > assembly (9)
+sept.-18 17:00:57.041 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [40/d42378] Cached process > blast (5)
+sept.-18 17:00:57.057 [Actor Thread 17] INFO  nextflow.processor.TaskProcessor - [e5/95a9b3] Cached process > blast (7)
+sept.-18 17:00:57.087 [Actor Thread 8] INFO  nextflow.processor.TaskProcessor - [2c/9d1991] Cached process > assembly (10)
+sept.-18 17:00:57.089 [Actor Thread 24] INFO  nextflow.processor.TaskProcessor - [5d/733e39] Cached process > blast (8)
+sept.-18 17:00:57.108 [Actor Thread 20] INFO  nextflow.processor.TaskProcessor - [a6/b4d1ae] Cached process > vp1 (4)
+sept.-18 17:00:57.111 [Actor Thread 19] INFO  nextflow.processor.TaskProcessor - [3d/e75bc5] Cached process > annotation (3)
+sept.-18 17:00:57.119 [Actor Thread 3] INFO  nextflow.processor.TaskProcessor - [a9/d3f9f0] Cached process > vp1 (1)
+sept.-18 17:00:57.122 [Actor Thread 14] INFO  nextflow.processor.TaskProcessor - [ae/fdb8ed] Cached process > annotation (1)
+sept.-18 17:00:57.124 [Actor Thread 13] INFO  nextflow.processor.TaskProcessor - [eb/30e3a1] Cached process > annotation (2)
+sept.-18 17:00:57.127 [Actor Thread 22] INFO  nextflow.processor.TaskProcessor - [d2/d0a2c2] Cached process > vp1 (3)
+sept.-18 17:00:57.134 [Actor Thread 21] INFO  nextflow.processor.TaskProcessor - [ba/176afc] Cached process > vp1 (2)
+sept.-18 17:00:57.136 [Actor Thread 18] INFO  nextflow.processor.TaskProcessor - [ce/e13b94] Cached process > blast (9)
+sept.-18 17:00:57.140 [Actor Thread 23] INFO  nextflow.processor.TaskProcessor - [e9/83c0e9] Cached process > annotation (4)
+sept.-18 17:00:57.143 [Actor Thread 25] INFO  nextflow.processor.TaskProcessor - [88/60d535] Cached process > assembly (11)
+sept.-18 17:00:57.146 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [f1/0aff3c] Cached process > blast (10)
+sept.-18 17:00:57.165 [Actor Thread 9] DEBUG nextflow.Session - <<< barrier arrive (process: assembly)
+sept.-18 17:00:57.175 [Actor Thread 17] INFO  nextflow.processor.TaskProcessor - [9e/fdbcc2] Cached process > annotation (5)
+sept.-18 17:00:57.219 [Actor Thread 23] INFO  nextflow.processor.TaskProcessor - [9f/497b76] Cached process > annotation (6)
+sept.-18 17:00:57.229 [Actor Thread 20] INFO  nextflow.processor.TaskProcessor - [60/eb5f7c] Cached process > vp1 (5)
+sept.-18 17:00:57.246 [Actor Thread 21] INFO  nextflow.processor.TaskProcessor - [f6/d73ab8] Cached process > vp1 (7)
+sept.-18 17:00:57.256 [Actor Thread 13] INFO  nextflow.processor.TaskProcessor - [4c/222d54] Cached process > annotation (8)
+sept.-18 17:00:57.262 [Actor Thread 3] INFO  nextflow.processor.TaskProcessor - [d0/3b2319] Cached process > vp1 (6)
+sept.-18 17:00:57.265 [Actor Thread 22] INFO  nextflow.processor.TaskProcessor - [1a/700ec1] Cached process > vp1 (8)
+sept.-18 17:00:57.273 [Actor Thread 7] INFO  nextflow.processor.TaskProcessor - [cc/36daf0] Cached process > annotation (7)
+sept.-18 17:00:57.288 [Actor Thread 19] INFO  nextflow.processor.TaskProcessor - [0b/8a60dd] Cached process > blast (11)
+sept.-18 17:00:57.291 [Actor Thread 16] INFO  nextflow.processor.TaskProcessor - [26/324b39] Cached process > annotation (9)
+sept.-18 17:00:57.297 [Actor Thread 4] DEBUG nextflow.Session - <<< barrier arrive (process: blast)
+sept.-18 17:00:57.305 [Actor Thread 20] INFO  nextflow.processor.TaskProcessor - [fe/e2669b] Cached process > vp1 (9)
+sept.-18 17:00:57.328 [Actor Thread 8] INFO  nextflow.processor.TaskProcessor - [94/ac8eaa] Cached process > annotation (10)
+sept.-18 17:00:57.341 [Actor Thread 21] INFO  nextflow.processor.TaskProcessor - [d9/b859db] Cached process > vp1 (10)
+sept.-18 17:00:57.356 [Actor Thread 25] INFO  nextflow.processor.TaskProcessor - [79/8b080e] Cached process > annotation (11)
+sept.-18 17:00:57.365 [Actor Thread 24] INFO  nextflow.processor.TaskProcessor - [e9/c7ef99] Cached process > vp1 (11)
+sept.-18 17:00:57.369 [Actor Thread 4] DEBUG nextflow.Session - <<< barrier arrive (process: annotation)
+sept.-18 17:00:57.370 [Actor Thread 10] DEBUG nextflow.Session - <<< barrier arrive (process: vp1)
+sept.-18 17:00:57.427 [Actor Thread 8] DEBUG nextflow.sort.BigSort - Sort completed -- entries: 11; slices: 1; internal sort time: 0.029 s; external sort time: 0.013 s; total time: 0.042 s
+sept.-18 17:00:57.427 [Actor Thread 21] DEBUG nextflow.sort.BigSort - Sort completed -- entries: 11; slices: 1; internal sort time: 0.03 s; external sort time: 0.012 s; total time: 0.042 s
+sept.-18 17:00:57.433 [Actor Thread 21] DEBUG nextflow.file.FileCollector - >> temp file exists? true
+sept.-18 17:00:57.433 [Actor Thread 8] DEBUG nextflow.file.FileCollector - >> temp file exists? true
+sept.-18 17:00:57.448 [Actor Thread 21] DEBUG nextflow.file.FileCollector - Retrivied cached collect-files from: /tmp/b46852aff389f7cb38f5290c7a5482ce.collect-file -- cached files: [/pasteur/scratch/amine/amrish/tmp/da/c2267c622150ff9bf9df5dc30c2325/combined.tsv]
+sept.-18 17:00:57.449 [Actor Thread 8] DEBUG nextflow.file.FileCollector - Retrivied cached collect-files from: /tmp/863f0a7c1bec2a3481f3c1926b376a6d.collect-file -- cached files: [/pasteur/scratch/amine/amrish/tmp/8b/465303f71eff427dacdf7933be1b66/vp1contigs.fasta]
+sept.-18 17:00:57.509 [Actor Thread 8] DEBUG nextflow.file.FileCollector - Deleting file collector temp dir: /tmp/nxf-6769152061761817998
+sept.-18 17:00:57.510 [Actor Thread 21] DEBUG nextflow.file.FileCollector - Deleting file collector temp dir: /tmp/nxf-2340602149070570437
+sept.-18 17:00:57.522 [Actor Thread 25] INFO  nextflow.processor.TaskProcessor - [29/cb2faf] Cached process > buildIndex (1)
+sept.-18 17:00:57.537 [Actor Thread 10] DEBUG nextflow.Session - <<< barrier arrive (process: buildIndex)
+sept.-18 17:00:58.547 [Task submitter] DEBUG nextflow.executor.GridTaskHandler - [SLURM] submitted process abundance_vp1 > jobId: 20137854; workDir: /pasteur/scratch/amine/amrish/16/5a74ca813e39a097a9afe6c18e04cc
+sept.-18 17:00:58.555 [Task submitter] INFO  nextflow.Session - [16/5a74ca] Submitted process > abundance_vp1
+sept.-18 17:00:58.830 [Task submitter] DEBUG nextflow.executor.GridTaskHandler - [SLURM] submitted process combine_annotation (1) > jobId: 20137856; workDir: /pasteur/scratch/amine/amrish/35/6f89a272122412dcda7c9040a620de
+sept.-18 17:00:58.831 [Task submitter] INFO  nextflow.Session - [35/6f89a2] Submitted process > combine_annotation (1)
+sept.-18 17:01:15.774 [Task monitor] DEBUG n.processor.TaskPollingMonitor - Task completed > TaskHandler[jobId: 20137856; id: 80; name: combine_annotation (1); status: COMPLETED; exit: 0; error: -; workDir: /pasteur/scratch/amine/amrish/35/6f89a272122412dcda7c9040a620de started: 1505746875685; exited: 2017-09-18T15:01:05Z; ]
+sept.-18 17:01:15.789 [Actor Thread 4] DEBUG nextflow.Session - <<< barrier arrive (process: combine_annotation)
+sept.-18 17:06:05.052 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor slurm > tasks to be completed: 1 -- pending tasks are shown below
+~> TaskHandler[jobId: 20137854; id: 79; name: abundance_vp1; status: RUNNING; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/16/5a74ca813e39a097a9afe6c18e04cc started: 1505746865289; exited: -; ]
+sept.-18 17:11:07.324 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor slurm > tasks to be completed: 1 -- pending tasks are shown below
+~> TaskHandler[jobId: 20137854; id: 79; name: abundance_vp1; status: RUNNING; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/16/5a74ca813e39a097a9afe6c18e04cc started: 1505746865289; exited: -; ]
+sept.-18 17:16:07.344 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor slurm > tasks to be completed: 1 -- pending tasks are shown below
+~> TaskHandler[jobId: 20137854; id: 79; name: abundance_vp1; status: RUNNING; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/16/5a74ca813e39a097a9afe6c18e04cc started: 1505746865289; exited: -; ]
+sept.-18 17:21:07.362 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor slurm > tasks to be completed: 1 -- pending tasks are shown below
+~> TaskHandler[jobId: 20137854; id: 79; name: abundance_vp1; status: RUNNING; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/16/5a74ca813e39a097a9afe6c18e04cc started: 1505746865289; exited: -; ]
+sept.-18 17:23:49.317 [Task monitor] DEBUG nextflow.file.FileHelper - NFS path (true): /pasteur/scratch/amine/amrish
+sept.-18 17:23:49.395 [Task monitor] DEBUG n.processor.TaskPollingMonitor - Task completed > TaskHandler[jobId: 20137854; id: 79; name: abundance_vp1; status: COMPLETED; exit: 0; error: -; workDir: /pasteur/scratch/amine/amrish/16/5a74ca813e39a097a9afe6c18e04cc started: 1505746865289; exited: 2017-09-18T15:23:42Z; ]
+sept.-18 17:23:49.404 [Actor Thread 4] DEBUG nextflow.Session - <<< barrier arrive (process: abundance_vp1)
+sept.-18 17:23:49.862 [Task submitter] DEBUG nextflow.executor.GridTaskHandler - [SLURM] submitted process summary (1) > jobId: 20140753; workDir: /pasteur/scratch/amine/amrish/87/150574e9ca1a9fc07cb970d9186c2b
+sept.-18 17:23:49.862 [Task submitter] INFO  nextflow.Session - [87/150574] Submitted process > summary (1)
+sept.-18 17:26:10.183 [Task monitor] DEBUG n.processor.TaskPollingMonitor - !! executor slurm > tasks to be completed: 1 -- pending tasks are shown below
+~> TaskHandler[jobId: 20140753; id: 81; name: summary (1); status: RUNNING; exit: -; error: -; workDir: /pasteur/scratch/amine/amrish/87/150574e9ca1a9fc07cb970d9186c2b started: 1505748239320; exited: -; ]
+sept.-18 17:26:25.194 [Task monitor] DEBUG n.processor.TaskPollingMonitor - Task completed > TaskHandler[jobId: 20140753; id: 81; name: summary (1); status: COMPLETED; exit: 1; error: -; workDir: /pasteur/scratch/amine/amrish/87/150574e9ca1a9fc07cb970d9186c2b started: 1505748239320; exited: 2017-09-18T15:26:23Z; ]
+sept.-18 17:26:25.298 [Task monitor] ERROR nextflow.processor.TaskProcessor - Error executing process > 'summary (1)'
+
+Caused by:
+  Process `summary (1)` terminated with an error exit status (1)
+
+Command executed:
+
+  python /pasteur/homes/aghozlan/entvirus/bin/extract_result.py -i res2 -a /pasteur/scratch/amine/polston_databases/vp1_info.tsv             -vp1 vp1contigs_annotation.tsv -o result_summary.tsv -r amrish             -c count_matrix.tsv -l no
+
+Command exit status:
+  1
+
+Command output:
+  Cleaned
+  get fasta data: assembly
+  res2/assembly/HC5-ROM-8150-P3M1M4_S226_spades.fasta
+  res2/assembly/HC4-ROM-8145-P4M1M2_S225_spades.fasta
+  res2/assembly/HC3-ROM-8144-P4M1M2_S224_spades.fasta
+  res2/assembly/HC8-ROM-8160-P3M1M4_S228_spades.fasta
+  res2/assembly/HC7-ROM-8159-P3M1M4_S227_spades.fasta
+  res2/assembly/HC1-ROM-8142-P3M1M4_S222_spades.fasta
+  res2/assembly/SWG1-ROM-188423-P3M1M4_S220_spades.fasta
+  res2/assembly/HC6-ROM-8157-P3M1M4_S203_spades.fasta
+  res2/assembly/HC2-ROM-8143-P3M1M4_S223_spades.fasta
+  res2/assembly/SWG3-ROM-189149-P3M1M4_S202_spades.fasta
+  res2/assembly/SWG5-ROM-174801-P3M1M4_S221_spades.fasta
+  Contigs
+  ['res2/vp1_contigs/HC1-ROM-8142-P3M1M4_S222_vp1_contigs.fasta', 'res2/vp1_contigs/HC3-ROM-8144-P4M1M2_S224_vp1_contigs.fasta', 'res2/vp1_contigs/HC7-ROM-8159-P3M1M4_S227_vp1_contigs.fasta', 'res2/vp1_contigs/SWG5-ROM-174801-P3M1M4_S221_vp1_contigs.fasta', 'res2/vp1_contigs/HC6-ROM-8157-P3M1M4_S203_vp1_contigs.fasta', 'res2/vp1_contigs/HC4-ROM-8145-P4M1M2_S225_vp1_contigs.fasta', 'res2/vp1_contigs/HC5-ROM-8150-P3M1M4_S226_vp1_contigs.fasta']
+  get fasta data: vp1_contigs
+  res2/vp1_contigs/HC1-ROM-8142-P3M1M4_S222_vp1_contigs.fasta
+  res2/vp1_contigs/HC3-ROM-8144-P4M1M2_S224_vp1_contigs.fasta
+  res2/vp1_contigs/HC7-ROM-8159-P3M1M4_S227_vp1_contigs.fasta
+  res2/vp1_contigs/SWG5-ROM-174801-P3M1M4_S221_vp1_contigs.fasta
+  res2/vp1_contigs/HC6-ROM-8157-P3M1M4_S203_vp1_contigs.fasta
+  res2/vp1_contigs/HC4-ROM-8145-P4M1M2_S225_vp1_contigs.fasta
+  res2/vp1_contigs/HC5-ROM-8150-P3M1M4_S226_vp1_contigs.fasta
+  vp1_contigs
+  ['res2/blast/SWG5-ROM-174801-P3M1M4_S221_vp1.tsv', 'res2/blast/HC4-ROM-8145-P4M1M2_S225_vp1.tsv', 'res2/blast/HC6-ROM-8157-P3M1M4_S203_vp1.tsv', 'res2/blast/HC7-ROM-8159-P3M1M4_S227_vp1.tsv', 'res2/blast/HC3-ROM-8144-P4M1M2_S224_vp1.tsv', 'res2/blast/HC1-ROM-8142-P3M1M4_S222_vp1.tsv', 'res2/blast/HC5-ROM-8150-P3M1M4_S226_vp1.tsv']
+  Annotation
+  vp1_contigs abundance
+  Final
+
+Command error:
+  Traceback (most recent call last):
+    File "/pasteur/homes/aghozlan/entvirus/bin/extract_result.py", line 457, in <module>
+      main()
+    File "/pasteur/homes/aghozlan/entvirus/bin/extract_result.py", line 453, in main
+      write_result(sample_data, args.output_file, annotated)
+  NameError: global name 'annotated' is not defined
+  .command.run.1: line 99: 29492 Complété              nxf_trace "$pid" .command.trace
+
+Work dir:
+  /pasteur/scratch/amine/amrish/87/150574e9ca1a9fc07cb970d9186c2b
+
+Tip: you can try to figure out what's wrong by changing to the process work dir and showing the script file named `.command.sh`
+sept.-18 17:26:25.304 [Actor Thread 27] DEBUG nextflow.Session - <<< barrier arrive (process: summary)
+sept.-18 17:26:25.304 [main] DEBUG nextflow.Session - Session await > all process finished
+sept.-18 17:26:25.310 [Task monitor] DEBUG nextflow.Session - Session aborted -- Cause: Process `summary (1)` terminated with an error exit status (1)
+sept.-18 17:26:25.357 [main] DEBUG nextflow.Session - Session await > all barriers passed
+sept.-18 17:26:25.365 [Task monitor] DEBUG n.processor.TaskPollingMonitor - <<< barrier arrives (monitor: slurm)
+sept.-18 17:26:25.366 [main] DEBUG nextflow.trace.TimelineObserver - Flow completing -- rendering html timeline
+sept.-18 17:26:25.504 [main] DEBUG nextflow.CacheDB - Closing CacheDB done
+sept.-18 17:26:25.558 [main] DEBUG nextflow.script.ScriptRunner - > Execution complete -- Goodbye

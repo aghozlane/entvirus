@@ -133,6 +133,8 @@ process trimming {
 
     output:
     set pair_id, file("*_R1.fastq"), file("*_R2.fastq") into trimChannel
+    file("*_R1.fastq") into r1Channel
+    file("*_R2.fastq") into r2Channel
     file("*.fastq.gz") into mappingChannel mode flatten
 
     script:
@@ -404,15 +406,17 @@ process abundance_vp1 {
 
     input:
     file(vp1contigs) from vp1contigs_index.first()
-    file cleanDir
+    file(forward) from r1Channel.toList()
+    file(reverse) from r2Channel.toList()
+    //file cleanDir
+
 
     output:
-    //file("abundance/comptage/count_matrix.txt") into countChannel
     file("abundance/count_matrix.tsv") into countChannel
     // change to shared
     shell:
     """
-    mbma.py mapping -i !{cleanDir} -o abundance \
+    mbma.py mapping --r1 !{forward} --r2 !{reverse} -o abundance \
            -db vp1contigs.index -e !{params.mail} -q fast --bowtie2 \
            --best -m PE -t !{params.cpus} > log.txt 2> error.txt
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
@@ -481,7 +485,7 @@ process combine_annotation {
 //vp1contigs_annotation.subscribe { it.copyTo(myDir) }
 
 process summary {
-    publishDir "$myDir", mode: 'copy'
+    //publishDir "$myDir", mode: 'copy'
 
     input:
     file(vp1contigs_annot) from vp1finalChannel
@@ -501,7 +505,7 @@ process summary {
     """
 }
 
-
+resultChannel.subscribe { it.copyTo(myDir) }
 println "Project : $workflow.projectDir"
 //println "Git info: $workflow.repository - $workflow.revision [$workflow.commitId]"
 println "Cmd line: $workflow.commandLine"

@@ -227,7 +227,7 @@ process assembly {
     set pair_id, file(forward), file(reverse) from khmerChannel
 
     output:
-    set pair_id, file("assembly/*_{spades,minia,clc,megahit}.fasta") into contigsChannel
+    set pair_id, file("assembly/*_{spades,minia,clc,megahit,ray}.fasta") into contigsChannel
 
     shell:
     """
@@ -255,7 +255,8 @@ process assembly {
     elif [ !{params.mode} ==  "ray" ]
     then
         mpiexec -n !{params.cpus} Ray -k 31 -p !{forward} !{reverse} -o assembly/
-
+        python !{baseDir}/bin/rename_fasta.py -i assembly/Contigs.fasta \
+            -o assembly/!{pair_id}_ray.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "megahit" ] 
     then
         !{baseDir}/bin/megahit -1 !{forward} -2 !{reverse} -o assembly/ -t !{params.cpus}

@@ -31,7 +31,7 @@ workflow.onError = {
 params.help=false
 
 def usage() {
-    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,spades,minia> -w <temp_work_dir> --annotated <yes,no>")
+    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,spades,minia,megahit,metacompass,ray> -w <temp_work_dir> --annotated <yes,no>")
 }
 
 
@@ -214,6 +214,10 @@ process assembly {
         clusterOptions='--qos=normal -C clcbio -p common'
         //clusterOptions='--qos=clcgwb --x11 clcgenomicswb9'
     }
+    else if(params.mode == "metacompass"){
+        beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=""'
+        module = 'Python/3.6.0'
+    }
     //else{
     //    clusterOptions='--qos=normal -p common'
     //}
@@ -223,30 +227,45 @@ process assembly {
     set pair_id, file(forward), file(reverse) from khmerChannel
 
     output:
-    set pair_id, file("assembly/*_{spades,minia,clc}.fasta") into contigsChannel
+    set pair_id, file("assembly/*_{spades,minia,clc,megahit}.fasta") into contigsChannel
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir assembly
-    if [ !{params.mode} == "spades" ]
+    if [ !{params.mode} ==  "clc" ]
     then
-        spades.py --meta -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
-        python !{baseDir}/bin/rename_fasta.py -i assembly/scaffolds.fasta \
-                -s !{pair_id} -o assembly/!{pair_id}_spades.fasta
-    elif [ !{params.mode} ==  "clc" ]
-    then
+        mkdir assembly
         clc_assembler -o assembly/contigs.fasta -p fb ss 180 250 -q \
             -i !{forward} !{reverse} --cpus !{params.cpus}
         python !{baseDir}/bin/rename_fasta.py -i assembly/contigs.fasta \
                 -s !{pair_id} -o assembly/!{pair_id}_clc.fasta
-    else
+    elif [ !{params.mode} ==  "minia" ] 
+    then
+        mkdir assembly
         #interleave-reads.py !{forward} !{reverse} --output assembly/!{pair_id}.pe
         #minia -in assembly/!{pair_id}.pe -out assembly/!{pair_id} -nb-cores !{params.cpus}
         !{baseDir}/bin/gatb-minia-pipeline/gatb -1 !{forward} -2 !{reverse} \
-            -o !{pair_id}_minia
+            -o !{pair_id}_minia --kmer-sizes 21,33
         python !{baseDir}/bin/rename_fasta.py -i !{pair_id}_minia.fasta \
             -o assembly/!{pair_id}_minia.fasta -s !{pair_id}
+    elif [ !{params.mode} ==  "metacompass" ] 
+    then
+        python3 !{baseDir}/bin/MetaCompass/go_metacompass.py -P !{forward},!{reverse} -t !{params.cpus} \
+            -o assembly/
+    elif [ !{params.mode} ==  "ray" ]
+    then
+        mpiexec -n !{params.cpus} Ray -k 31 -p !{forward} !{reverse} -o assembly/
+
+    elif [ !{params.mode} ==  "megahit" ] 
+    then
+        !{baseDir}/bin/megahit -1 !{forward} -2 !{reverse} -o assembly/ -t !{params.cpus}
+        python !{baseDir}/bin/rename_fasta.py -i assembly/final.contigs.fa \
+            -o assembly/!{pair_id}_megahit.fasta -s !{pair_id}
+    else
+        mkdir assembly
+        spades.py --meta -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
+        python !{baseDir}/bin/rename_fasta.py -i assembly/scaffolds.fasta \
+                -s !{pair_id} -o assembly/!{pair_id}_spades.fasta 
     fi
     """
 }

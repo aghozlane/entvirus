@@ -212,6 +212,7 @@ def get_fasta_data(sample_data, list_file, tag):
         # Get sample name
         name,ext = os.path.splitext(os.path.basename(sample))
         name = name.replace("_spades", "").replace("_clc", "").replace("_minia", "")
+        name = name.replace("_megahit", "").replace("_metacompass", "").replace("_ray", "")
         name = name.replace("_vp1_contigs", "")
         if name in sample_data:
             seq_info, seq_len_tab = parse_fasta(sample, tag)

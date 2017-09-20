@@ -1,2 +1,5 @@
 timeline.html*
 .nextflow*
+nextflow_slurm*
+nextflow_sge*
+.nfs*

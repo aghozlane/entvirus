@@ -31,7 +31,7 @@ workflow.onError = {
 params.help=false
 
 def usage() {
-    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,spades,minia,megahit,metacompass,ray> -w <temp_work_dir> --annotated <yes,no>")
+    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,minia,megahit,metacompass,ray,spades> -w <temp_work_dir> --annotated <yes,no>")
 }
 
 
@@ -75,6 +75,7 @@ params.filter = 1
 params.vp1info = "/pasteur/scratch/amine/polston_databases/vp1_info.tsv"
 params.taxadb = "/pasteur/scratch/amine/polston_databases/taxadb_nucl.sqlite"
 params.annotated =  "no"
+params.readlength = 150
 inDir = file(params.in)
 
 myDir = file(params.out)
@@ -207,27 +208,31 @@ khmerChannel.into { mappingChannel ; assemblyChannel }*/
 
 process assembly {
     publishDir "$myDir", mode: 'copy'
-    cpus params.cpus
-    memory "10G"
+    memory "20G"
 
     if(params.mode == "clc"){
         clusterOptions='--qos=normal -C clcbio -p common'
         //clusterOptions='--qos=clcgwb --x11 clcgenomicswb9'
+        cpus params.cpus
     }
     else if(params.mode == "metacompass"){
-        beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=""'
-        module = 'Python/3.6.0'
+        beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PATH=/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/megahit:/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/kmer-code-2013-trunk/Linux-amd64/bin/:$PATH'
+        module = 'Python/3.6.0:samtools/1.3:snakemake/3.5.4:bowtie2/2.2.9'
+        cpus params.cpus
     }
-    //else{
-    //    clusterOptions='--qos=normal -p common'
-    //}
+    else if(params.mode == "Ray"){
+        cpus 1
+    }
+    else{
+        cpus params.cpus
+    }
 
     input:
     //set pair_id, file(forward), file(reverse) from assemblyChannel
     set pair_id, file(forward), file(reverse) from khmerChannel
 
     output:
-    set pair_id, file("assembly/*_{spades,minia,clc,megahit,ray}.fasta") into contigsChannel
+    set pair_id, file("assembly/*_{clc,megahit,metacompass,minia,ray,spades}.fasta") into contigsChannel
 
     shell:
     """
@@ -239,7 +244,7 @@ process assembly {
             -i !{forward} !{reverse} --cpus !{params.cpus}
         python !{baseDir}/bin/rename_fasta.py -i assembly/contigs.fasta \
                 -s !{pair_id} -o assembly/!{pair_id}_clc.fasta
-    elif [ !{params.mode} ==  "minia" ] 
+    elif [ !{params.mode} ==  "minia" ]
     then
         mkdir assembly
         #interleave-reads.py !{forward} !{reverse} --output assembly/!{pair_id}.pe
@@ -248,25 +253,28 @@ process assembly {
             -o !{pair_id}_minia --kmer-sizes 21,33
         python !{baseDir}/bin/rename_fasta.py -i !{pair_id}_minia.fasta \
             -o assembly/!{pair_id}_minia.fasta -s !{pair_id}
-    elif [ !{params.mode} ==  "metacompass" ] 
+    elif [ !{params.mode} ==  "metacompass" ]
     then
-        python3 !{baseDir}/bin/MetaCompass/go_metacompass.py -P !{forward},!{reverse} -t !{params.cpus} \
-            -o assembly/
+        python3 !{baseDir}/bin/MetaCompass/go_metacompass.py -P !{forward},!{reverse}  \
+            -t !{params.cpus} -o assembly/   -l !{params.readlength} --clobber \
+            -r !{params.viral}
+            python !{baseDir}/bin/rename_fasta.py -i assembly/metacompass.final.ctg.fa \
+            -o assembly/!{pair_id}_metacompass.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "ray" ]
     then
-        mpiexec -n !{params.cpus} Ray -k 31 -p !{forward} !{reverse} -o assembly/
+        Ray -k 31 -p !{forward} !{reverse} -o assembly/
         python !{baseDir}/bin/rename_fasta.py -i assembly/Contigs.fasta \
             -o assembly/!{pair_id}_ray.fasta -s !{pair_id}
-    elif [ !{params.mode} ==  "megahit" ] 
+    elif [ !{params.mode} ==  "megahit" ]
     then
-        !{baseDir}/bin/megahit -1 !{forward} -2 !{reverse} -o assembly/ -t !{params.cpus}
+        !{baseDir}/bin/megahit/megahit -1 !{forward} -2 !{reverse} -o assembly/ -t !{params.cpus}
         python !{baseDir}/bin/rename_fasta.py -i assembly/final.contigs.fa \
             -o assembly/!{pair_id}_megahit.fasta -s !{pair_id}
     else
         mkdir assembly
         spades.py --meta -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
         python !{baseDir}/bin/rename_fasta.py -i assembly/scaffolds.fasta \
-                -s !{pair_id} -o assembly/!{pair_id}_spades.fasta 
+                -s !{pair_id} -o assembly/!{pair_id}_spades.fasta
     fi
     """
 }
@@ -437,8 +445,9 @@ process abundance_vp1 {
     shell:
     """
     mbma.py mapping --r1 !{forward} --r2 !{reverse} -o abundance \
-           -db vp1contigs.index -e !{params.mail} -q fast --bowtie2 \
-           --best -m PE -t !{params.cpus} > log.txt 2> error.txt
+           -db vp1contigs.index -e !{params.mail} -q !{params.queue} \
+           -p !{params.partition} --bowtie2 \
+           --best -m PE -t !{params.cpus}
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
     """
 }

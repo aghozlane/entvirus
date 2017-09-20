@@ -447,7 +447,7 @@ process abundance_vp1 {
     mbma.py mapping --r1 !{forward} --r2 !{reverse} -o abundance \
            -db vp1contigs.index -e !{params.mail} -q !{params.queue} \
            -p !{params.partition} --bowtie2 \
-           --best -m PE -t !{params.cpus}
+           --shared -m PE -t !{params.cpus}
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
     """
 }

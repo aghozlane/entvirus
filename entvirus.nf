@@ -216,7 +216,7 @@ process assembly {
         cpus params.cpus
     }
     else if(params.mode == "metacompass"){
-        beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PATH=/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/megahit:/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/kmer-code-2013-trunk/Linux-amd64/bin/:$PATH'
+        beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PATH=/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/kmer-code-2013-trunk/Linux-amd64/bin/:$PATH'
         module = 'Python/3.6.0:samtools/1.3:snakemake/3.5.4:bowtie2/2.2.9'
         cpus params.cpus
     }
@@ -267,7 +267,7 @@ process assembly {
             -o assembly/!{pair_id}_ray.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "megahit" ]
     then
-        !{baseDir}/bin/megahit/megahit -1 !{forward} -2 !{reverse} -o assembly/ -t !{params.cpus}
+        megahit -1 !{forward} -2 !{reverse} -o assembly/ -t !{params.cpus}
         python !{baseDir}/bin/rename_fasta.py -i assembly/final.contigs.fa \
             -o assembly/!{pair_id}_megahit.fasta -s !{pair_id}
     else
@@ -372,7 +372,7 @@ process annotation {
     //clusterOptions='--qos=normal -p common'
     publishDir "$myDir", mode: 'copy'
     memory "10G"
-    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=""'
+    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=/pasteur/projets/policy01/Matrix/metagenomics/python-lib//lib/python3.6/site-packages/'
     module = 'Python/3.6.0'
 
     input:

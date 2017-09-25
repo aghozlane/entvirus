@@ -98,6 +98,7 @@ process filtering {
 
     output:
     set pair_id, file("unmapped/*.1"), file("unmapped/*.2") into unmappedChannel
+    set pair_id, file("unmapped/*.1"), file("unmapped/*.2") into redundantChannel
 
     shell:
     """
@@ -220,8 +221,12 @@ process assembly {
         module = 'Python/3.6.0:samtools/1.3:snakemake/3.5.4:bowtie2/2.2.9'
         cpus params.cpus
     }
-    else if(params.mode == "Ray"){
+    else if(params.mode == "ray"){
         cpus 1
+    }
+    else if(params.mode == "minia"){
+        beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=/pasteur/projets/policy01/Matrix/metagenomics/python-lib/lib/python2.7/site-packages;export LD_LIBRARY_PATH=/pasteur/projets/policy01/Matrix/metagenomics/htslib/lib'
+        module = 'Python/2.7.8'
     }
     else{
         cpus params.cpus
@@ -230,6 +235,7 @@ process assembly {
     input:
     //set pair_id, file(forward), file(reverse) from assemblyChannel
     set pair_id, file(forward), file(reverse) from khmerChannel
+    set pair_id, file(rforward), file(rreverse) from redundantChannel
 
     output:
     set pair_id, file("assembly/*_{clc,megahit,metacompass,minia,ray,spades}.fasta") into contigsChannel
@@ -249,7 +255,7 @@ process assembly {
         mkdir assembly
         #interleave-reads.py !{forward} !{reverse} --output assembly/!{pair_id}.pe
         #minia -in assembly/!{pair_id}.pe -out assembly/!{pair_id} -nb-cores !{params.cpus}
-        !{baseDir}/bin/gatb-minia-pipeline/gatb -1 !{forward} -2 !{reverse} \
+        !{baseDir}/bin/gatb-minia-pipeline/gatb -1 !{rforward} -2 !{rreverse} \
             -o !{pair_id}_minia --kmer-sizes 21,33
         python !{baseDir}/bin/rename_fasta.py -i !{pair_id}_minia.fasta \
             -o assembly/!{pair_id}_minia.fasta -s !{pair_id}
@@ -302,7 +308,7 @@ process blast {
     """
     mkdir blast
     blastn -query !{contigs}  -db !{params.vp1}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 -use_index true \
+           -out blast/!{contigsID}_vp1.tsv -use_index true \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'
     blastn -query !{contigs}  -db !{params.viral}  -num_threads !{params.cpus} \
            -out blast/!{contigsID}_polston.tsv \

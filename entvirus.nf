@@ -76,6 +76,7 @@ params.vp1info = "/pasteur/scratch/amine/polston_databases/vp1_info.tsv"
 params.taxadb = "/pasteur/scratch/amine/polston_databases/taxadb_nucl.sqlite"
 params.annotated =  "no"
 params.readlength = 150
+params.vp1coverage = 50
 inDir = file(params.in)
 
 myDir = file(params.out)
@@ -300,6 +301,7 @@ process blast {
     output:
     //file("log.txt") into logChannel
     set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel mode flatten
+    //set contigsID, file(contigs), file("blast/*_vp1_vsearch.tsv") into vp1vsearchChannel mode flatten
     //file("blast_vp1/*.tsv") into vp1blasttocombineChannel
     set contigsID, file("blast/*_ncbi_all.tsv") into blastChannel mode flatten
     file("blast/*.tsv") into allblastChannel mode flatten
@@ -308,8 +310,12 @@ process blast {
     """
     mkdir blast
     blastn -query !{contigs}  -db !{params.vp1}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_vp1.tsv -use_index true \
-           -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'
+           -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 \
+           -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
+           -task blastn -evalue 1E-3
+    #vsearch --usearch_global !{contigs} --blast6out blast/!{contigsID}_vp1_vsearch.tsv --db !{params.vp1} \
+    #       --id 0.5  --top_hits_only --userfields query+target+id+qrow  \
+    #       --userout blast/!{contigsID}_vp1_vsearch.tsv
     blastn -query !{contigs}  -db !{params.viral}  -num_threads !{params.cpus} \
            -out blast/!{contigsID}_polston.tsv \
            -max_target_seqs !{params.numberBestannotation} -use_index true \
@@ -350,9 +356,8 @@ process vp1 {
     set contigsID, file(contigs), file(vp1blast) from vp1blastChannel
 
     output:
-    //file("*.fasta") into fuckChannel
-    file("vp1/*.fasta") into vp1Channel
-    file("vp1_contigs/*.fasta") into vp1contigsChannel
+    file("vp1/*_vp1.fasta") into vp1Channel
+    file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannel
 
     shell:
     """
@@ -363,15 +368,46 @@ process vp1 {
     then
         # Extract VP1 sequence
         python !{baseDir}/bin/extract_sequence.py -q !{contigs} -b !{vp1blast} \
-               -o vp1/!{contigsID}_vp1.fasta -a !{params.vp1info}
+               -o vp1/!{contigsID}_vp1.fasta -a !{params.vp1info} \
+               -c !{params.vp1coverage}
         # Extract VP1 contig
         python !{baseDir}/bin/grab_catalogue_sequence.py -i !{vp1blast} \
-               -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs.fasta
+               -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs.fasta \
+               -a !{params.vp1info} -v !{params.vp1coverage}
     else
         touch vp1_contigs/!{contigsID}_vp1_contigs.fasta vp1/!{contigsID}_vp1.fasta
     fi
     """
 }
+
+/*process vp1_vsearch {
+    publishDir "$myDir", mode: 'copy'    
+
+    input:
+    set contigsID, file(contigs), file(vp1vsearch) from vp1vsearchChannel
+
+    output:
+    file("vp1/*_vp1_vsearch.fasta") into vp1vChannel
+    file("vp1_contigs/*_vp1_contigs_vsearch.fasta") into vp1contigsvChannel
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir vp1 vp1_contigs
+    nlines=\$(wc -l !{vp1blast} |cut -f 1 -d ' ')
+    if [ \${nlines} -gt '0' ]
+    then
+        # Extract VP1 sequence
+        python !{baseDir}/bin/extract_sequence_vsearch.py -i !{vp1vsearch} \
+               -o vp1/!{contigsID}_vp1_vsearch.fasta -a !{params.vp1info}
+        # Extract VP1 contig
+        python !{baseDir}/bin/grab_catalogue_sequence.py -i !{vp1vsearch} \
+               -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs_vsearch.fasta
+    else
+        touch vp1_contigs/!{contigsID}_vp1_contigs_vsearch.fasta vp1/!{contigsID}_vp1_vsearch.fasta
+    fi
+    """
+}*/
 
 // Extract ncbi tree
 process annotation {
@@ -411,6 +447,7 @@ process annotation {
 }
 
 combineChannel = annotationChannel.collectFile(name: 'combined.tsv')
+//vp1contigs_vsearch = vp1contigsvChannel.collectFile(name: 'vp1contigs_vsearch.fasta')
 vp1contigs = vp1contigsChannel.collectFile(name: 'vp1contigs.fasta')
 //vp1annotation = vp1blasttocombineChannel.collectFile(name: 'vp1blast.tsv')
 
@@ -536,7 +573,7 @@ process summary {
     """
     python ${baseDir}/bin/extract_result.py -i $myDir -a ${params.vp1info}\
              -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
-             -c ${countChannel} -l ${params.annotated}
+             -c ${countChannel} -l ${params.annotated} -v ${params.vp1coverage}
     """
 }
 

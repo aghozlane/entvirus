@@ -79,6 +79,12 @@ def getArguments():
                         ' list.')
     parser.add_argument('-id', dest='identity', type=str, default=None,
                         help="Add sample identity")
+    parser.add_argument('-e', dest='identity_threshold', type=float,
+                        default=0.0, help='Identity threshold (default 0.0)')
+    parser.add_argument('-v', dest='coverage_threshold', type=float,
+                        default=0.0, help='Coverage threshold (default 0.0)')
+    parser.add_argument('-a', dest='vp1_id_file', type=isfile, default=None,
+                        help='VP1 database annotation', required=True)
     parser.add_argument('-o', dest='output_file', type=str,
                         help='Output file.')
     parser.add_argument('-r', dest='results', type=isdir,
@@ -86,7 +92,23 @@ def getArguments():
     return parser.parse_args()
 
 
-def extract_interest_elements(list_sequences_file):
+def load_vp1_id(vp1_id_file):
+    """Load vp1 id file
+    """
+    vp1_id_dict = {}
+    try:
+        with open(vp1_id_file, "rt") as vp1_id:
+            vp1_id_reader = csv.reader(vp1_id, delimiter="\t")
+            for line in vp1_id_reader:
+                #print(line)
+                vp1_id_dict[line[0]] = float(line[2])
+    except IOError:
+        sys.exit("Error cannot open {0}".format(vp1_id_file))
+    return vp1_id_dict
+
+
+def extract_interest_elements(list_sequences_file, identity_threshold,
+                              coverage_threshold, vp1_id_dict):
     """Get a list of the element of interest
     """
     list_sequences = []
@@ -94,14 +116,16 @@ def extract_interest_elements(list_sequences_file):
         with open(list_sequences_file, "rt") as list_seq:
             list_sequences_reader = csv.reader(list_seq, delimiter="\t")
             for line in list_sequences_reader:
-                list_sequences.append(line[0])
-            assert(len(list_sequences) > 0)
+                if (float(line[8]) >= identity_threshold and 
+                    round(100.0 * float(line[3])/vp1_id_dict[line[1]]) >= coverage_threshold):
+                    list_sequences.append(line[0])
+            #assert(len(list_sequences) > 0)
             list_sequences.sort()
     except IOError:
         sys.exit("Error cannot the file : {0}".format(list_sequences_file))
-    except AssertionError:
-        sys.exit("Error no element detected in the file : {0}"
-                 .format(list_sequences_file))
+    #except AssertionError:
+    #    sys.exit("Error no element detected in the file : {0}"
+    #             .format(list_sequences_file))
     return list_sequences
 
 
@@ -142,7 +166,7 @@ def extract_catalogue_sequence(list_sequences, catalogue_file, not_in_database):
                     title = line[1:].replace("\n", "").replace("\r", "")
                     if " " in title:
                         title = title.split(" ")[0]
-                    print(title)
+                    #print(title)
                     selection = get_element(title, list_sequences)
                     if selection and not not_in_database:
                         interest_sequence[title] = ""
@@ -152,12 +176,12 @@ def extract_catalogue_sequence(list_sequences, catalogue_file, not_in_database):
                         grab_sequence = True
                 elif grab_sequence and len(line) > 0:
                     interest_sequence[title] += line.replace("\n", "").replace("\r", "")
-            assert(len(interest_sequence) > 0)
+            #assert(len(interest_sequence) > 0)
     except IOError:
         sys.exit("Error cannot the file : {0}".format(catalogue_file))
-    except AssertionError:
-        sys.exit("Error no element detected in the file : {0}"
-                 .format(catalogue_file))
+    #except AssertionError:
+    #    sys.exit("Error no element detected in the file : {0}"
+    #             .format(catalogue_file))
     return interest_sequence
 
 
@@ -191,9 +215,13 @@ def main():
     """
     # Get the arguments
     args = getArguments()
+    # Load Vp1
+    print("Load vp1")
+    vp1_id_dict = load_vp1_id(args.vp1_id_file)
     # Get List of sequence of interest
     print("Load the list of sequence of interest ...")
-    list_sequences = extract_interest_elements(args.list_sequences_file)
+    list_sequences = extract_interest_elements(args.list_sequences_file,
+        args.identity_threshold, args.coverage_threshold, vp1_id_dict)
     print("{0} sequences to search".format(len(list_sequences)))
     # Extract catalogue sequence
     print("Extract sequences from the catalogue...")

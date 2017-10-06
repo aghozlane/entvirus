@@ -80,8 +80,10 @@ def load_blast(blast_result_file, identity_threshold, coverage_threshold,
             blast_reader = csv.reader(blast_result, delimiter='\t')
             for line in blast_reader:
                 #print(line)
-                if (float(line[2]) >= identity_threshold and
-                    float(line[3]) >= coverage_threshold):
+                #print("id:" + str(round(float(line[8]),1)))
+                #print("cov:" +str(round(100.0 * float(line[3])/vp1_id_dict[line[1]][1])))
+                if (round(float(line[8]),1) >= identity_threshold and
+                    round(100.0 * float(line[3])/vp1_id_dict[line[1]][1]) >= coverage_threshold):
                     position_dict[line[0]] = {
                         "position":[int(line[4])-1,
                         int(line[5])-1],

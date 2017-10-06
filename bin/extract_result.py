@@ -80,6 +80,10 @@ def get_arguments():
                         default=None, help='Count matrix')
     parser.add_argument('-l', dest='annotated', type=str,
                         default="no", help='Annotated read files (default no)')
+    parser.add_argument('-d', dest='identity_threshold', type=float,
+                        default=0.0, help='Identity threshold (default 0.0)')
+    parser.add_argument('-v', dest='coverage_threshold', type=float,
+                        default=0.0, help='Coverage threshold (default 0.0)')
     parser.add_argument('-o', dest='output_file', type=str, required=True,
                         help='Output file')
     return parser.parse_args()
@@ -206,9 +210,9 @@ def get_reads_data(sample_data, list_reads, tag):
 def get_fasta_data(sample_data, list_file, tag):
     """Get contigs data
     """
-    print("get fasta data: " + tag)
+    #print("get fasta data: " + tag)
     for sample in list_file:
-        print(sample)
+        #print(sample)
         # Get sample name
         name,ext = os.path.splitext(os.path.basename(sample))
         name = name.replace("_spades", "").replace("_clc", "").replace("_minia", "")
@@ -251,7 +255,8 @@ def get_vp1(blast_vp1_file):
     return vp1_list
 
 
-def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag):
+def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
+                  identity_threshold, coverage_threshold):
     """Associate vp1 contigs and their annotation
     """
     for sample in blast_vp1_file:
@@ -263,13 +268,16 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag):
         # Get target length
         vp1_annotation_list = get_vp1(sample)
         for vp1 in vp1_annotation_list:
-            # print(vp1[0])
+            #print(vp1)
             # print(sample_data[name][tag])
             # print(sample_data[name][tag][vp1[0]])
-            # Gives id and coverage against vp1 db
-            sample_data[name][tag][vp1[0]] += (vp1[1:3] +
-                    [round(vp1[3]/float(vp1_id_dict[vp1[1]][1])*100.0,1)] +
-                    [vp1_id_dict[vp1[1]][0]])
+            print(vp1_id_dict[vp1[1]])
+            if (round(float(vp1[2]),1) >= identity_threshold and
+                round(100.0 * float(vp1[3])/float(vp1_id_dict[vp1[1]][1])) >= coverage_threshold):
+                # Gives id and coverage against vp1 db
+                sample_data[name][tag][vp1[0]] += (vp1[1:3] +
+                        [round(vp1[3]/float(vp1_id_dict[vp1[1]][1])*100.0,1)] +
+                        [vp1_id_dict[vp1[1]][0]])
     return sample_data
 
 def load_vp1_annotation(vp1_annotation_file, sample_data):
@@ -346,7 +354,7 @@ def write_result(sample_data, output_file, annotated):
                      "Length_VP1_contigs", "VP1_contigs_seq", "Map_VP1",
                      "Identity", "Coverage", "Annotation", "Identity",
                      "Coverage","Annotation_ncbi"])
-            print(sample_data.keys())
+            #print(sample_data.keys())
             for sample in sample_data:
                 if annotated == "yes":
                     tag = [sample] + sample.split("_")[0].split("-")[0:4]
@@ -358,7 +366,7 @@ def write_result(sample_data, output_file, annotated):
                     # print("vp1_contigs")
                     for vp1 in sample_data[sample]["vp1_contigs"]:
                         # print(vp1)
-                        print(sample_data[sample]["vp1_contigs"][vp1])
+                        #print(sample_data[sample]["vp1_contigs"][vp1])
                         if "raw_fwd" in sample_data[sample]:
                             #print(sample_data[sample]["vp1_contigs"][vp1])
                             output_writer.writerow(
@@ -371,7 +379,7 @@ def write_result(sample_data, output_file, annotated):
                                  vp1] +
                                 sample_data[sample]["vp1_contigs"][vp1])
                         else:
-                            print("nono: " + sample)
+                            #print("nono: " + sample)
                             output_writer.writerow(
                                 tag + sample_data[sample]["proc_fwd"][0:2] +
                                 sample_data[sample]["proc_rev"][0:2] +
@@ -380,7 +388,7 @@ def write_result(sample_data, output_file, annotated):
                                  vp1] +
                                 sample_data[sample]["vp1_contigs"][vp1])
                 else:
-                    print("no :" + sample)
+                    #print("no :" + sample)
                     # print("NO ?:")
                     if "raw_fwd" in sample_data[sample]:
                         output_writer.writerow(
@@ -439,7 +447,9 @@ def main():
         blast_vp1_file = check_file(blast_vp1_dir + "*_vp1.tsv")
         print(blast_vp1_file)
         sample_data = associate_vp1(sample_data, blast_vp1_file,
-                                    vp1_id_dict, "vp1_contigs")
+                                    vp1_id_dict, "vp1_contigs",
+                                    args.identity_threshold,
+                                    args.coverage_threshold)
     print("Annotation")    
     # Load vp1 annotation
     if args.vp1_annotation_file:

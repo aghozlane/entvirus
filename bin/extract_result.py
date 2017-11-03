@@ -301,11 +301,11 @@ def get_abundance(sample_data, count_matrix_file):
             count_matrix_reader = csv.reader(count_matrix, delimiter="\t")
             # Pass header
             sample_list = count_matrix_reader.next()[2:]
-            total_abundance = [0.0] * len(sample_list) 
+            total_abundance = [0.0] * len(sample_list)
             # sum column
             for line in count_matrix_reader:
                 total_abundance = [total_abundance[i] + float(line[2 + i])
-                                   for i in xrange(len(line[2:]))]            
+                                   for i in xrange(len(line[2:]))]
         with open(count_matrix_file, "rt") as count_matrix:
             count_matrix_reader = csv.reader(count_matrix, delimiter="\t")
             # Pass header
@@ -316,8 +316,11 @@ def get_abundance(sample_data, count_matrix_file):
                 for i in xrange(len(sample_list)):
                     if 'vp1_contigs' in  sample_data[sample_list[i]]:
                         if line[0] in sample_data[sample_list[i]]['vp1_contigs']:
-                            # Raw abundance
-                            sample_data[sample_list[i]]['vp1_contigs'][line[0]] += [abundances[i], abundances[i] / total_abundance[i]]
+                            if total_abundance[i] > 0.0:
+                                # Raw abundance
+                                sample_data[sample_list[i]]['vp1_contigs'][line[0]] += [abundances[i], abundances[i] / total_abundance[i]]
+                            else:
+                                sample_data[sample_list[i]]['vp1_contigs'][line[0]] += [0.0]
                             #print(sample_data[sample_list[i]]['vp1_contigs'][line[0]])
     except IOError:
         sys.exit("Error cannot open {0}".format(count_matrix_file))
@@ -344,7 +347,7 @@ def write_result(sample_data, output_file, annotated):
                      "Mean_length_proc_rev", "Number_contigs",
                      "Number_VP1_contigs", "VP1_contigs", "Length_VP1_contigs",
                      "VP1_contigs_seq", "Map_VP1", "Identity", "Coverage",
-                     "Annotation",  "Identity", "Coverage", "Annotation_ncbi", 
+                     "Annotation",  "Identity", "Coverage", "Annotation_ncbi",
                      "Raw abundance", "Relative abundance"])
             else:
                 output_writer.writerow(
@@ -450,7 +453,7 @@ def main():
                                     vp1_id_dict, "vp1_contigs",
                                     args.identity_threshold,
                                     args.coverage_threshold)
-    print("Annotation")    
+    print("Annotation")
     # Load vp1 annotation
     if args.vp1_annotation_file:
         sample_data = load_vp1_annotation(args.vp1_annotation_file, sample_data)

@@ -31,7 +31,7 @@ workflow.onError = {
 params.help=false
 
 def usage() {
-    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,minia,megahit,metacompass,ray,spades> -w <temp_work_dir> --annotated <yes,no>")
+    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,megahit,metacompass,ray,spades> -w <temp_work_dir> --annotated <yes,no>")
 }
 
 
@@ -52,7 +52,7 @@ readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}.{fastq,fastq.dsrc2,fa
 params.mail = "amine.ghozlane@pasteur.fr"
 params.databases = "/pasteur/scratch/amine/polston_databases"
 params.cpus = 2
-params.vp1 = "${params.databases}/vp1_seq.fasta"
+params.vp1 = "${params.databases}/vp1_seq_nov_17.fasta"
 params.ncbi = "${params.databases}/ncbi_viruses.fna"
 params.rvdb = "${params.databases}/rVDBv10.2.fasta"
 params.uniprot = "${params.databases}/uniprot_taxonomy.fasta"
@@ -69,12 +69,14 @@ params.contaminant = "/local/databases/index/bowtie/2.1.0/hg19.fa"
 params.alienseq = "${params.databases}/alienTrimmerPF8contaminants.fasta"
 params.minlength = 45
 params.cleaned_reads = "${params.out}/cleaned_reads"
+params.khmer_reads = "${params.out}/khmer_reads"
 params.blastdir = "${params.out}/blast"
 params.mode = "clc"
 params.filter = 1
-params.vp1info = "/pasteur/scratch/amine/polston_databases/vp1_info.tsv"
+params.vp1info = "/pasteur/scratch/amine/polston_databases/vp1_info_nov_17.tsv"
 params.taxadb = "/pasteur/scratch/amine/polston_databases/taxadb_nucl.sqlite"
 params.annotated =  "no"
+params.focus = "no"
 params.readlength = 150
 params.vp1coverage = 50
 inDir = file(params.in)
@@ -84,6 +86,9 @@ myDir.mkdirs()
 
 cleanDir = file("${params.cleaned_reads}")
 cleanDir.mkdirs()
+
+khmerDir = file("${params.khmer_reads}")
+khmerDir.mkdirs()
 
 blastDir = file("${params.blastdir}")
 blastDir.mkdirs()
@@ -99,7 +104,7 @@ process filtering {
 
     output:
     set pair_id, file("unmapped/*.1"), file("unmapped/*.2") into unmappedChannel
-    set pair_id, file("unmapped/*.1"), file("unmapped/*.2") into redundantChannel
+    //set pair_id, file("unmapped/*.1"), file("unmapped/*.2") into redundantChannel
 
     shell:
     """
@@ -119,9 +124,16 @@ process filtering {
     ;;
     esac
     mkdir unmapped
-    bowtie2 -q -N !{params.mismatch} -1 file_R1.fastq -2 file_R2.fastq \
-            -x !{params.contaminant} --un-conc unmapped/ -S /dev/null \
-            -p !{params.cpus} --very-sensitive-local
+    if [ !{params.focus} ==  "no" ]
+    then
+        bowtie2 -q -N !{params.mismatch} -1 file_R1.fastq -2 file_R2.fastq \
+                -x !{params.contaminant} --un-conc unmapped/ -S /dev/null \
+                -p !{params.cpus} --very-sensitive-local
+    else
+        bowtie2 -q -N !{params.mismatch} -1 file_R1.fastq -2 file_R2.fastq \
+                -x !{params.viral} --al-conc unmapped/ -S /dev/null \
+                -p !{params.cpus} --very-sensitive-local
+    fi
     """
 }
 
@@ -147,7 +159,6 @@ process trimming {
                  -c ${params.alienseq} -l ${params.minlength}
     gzip -c ${pair_id}_R1.fastq >  ${pair_id}_R1.fastq.gz
     gzip -c ${pair_id}_R2.fastq > ${pair_id}_R2.fastq.gz
-    gzip -c ${pair_id}_sgl.fastq > ${pair_id}_sgl.fastq.gz
     """
 
 }
@@ -169,7 +180,8 @@ else{
 
 process khmer {
     cpus params.cpus
-    memory "25G"
+    //memory "25G"
+    memory "15G"
 
     input:
     //set pair_id, file(forward), file(reverse) from filterChannel
@@ -177,6 +189,7 @@ process khmer {
 
     output:
     set pair_id, file("khmer/*_R1.fastq"), file("khmer/*_R2.fastq") into khmerChannel
+    file("khmer/*.fastq.gz") into khmeroutChannel mode flatten
 
     shell:
     """
@@ -191,8 +204,12 @@ process khmer {
         --output-single output.dn.se
     split-paired-reads.py output.dn.pe -1 khmer/${pair_id}_khmer_R1.fastq \
         -2 khmer/${pair_id}_khmer_R2.fastq
+    gzip -c khmer/${pair_id}_khmer_R1.fastq >  khmer/${pair_id}_R1.fastq.gz
+    gzip -c khmer/${pair_id}_khmer_R2.fastq > khmer/${pair_id}_R2.fastq.gz
     """
 }
+
+khmeroutChannel.subscribe{ it.copyTo(khmerDir) }
 
 /*readtoassemblyChannel = Channel.create()
 assemblyChannel = Channel.create()
@@ -210,36 +227,38 @@ khmerChannel.into { mappingChannel ; assemblyChannel }*/
 
 process assembly {
     publishDir "$myDir", mode: 'copy'
-    memory "20G"
+    //memory "20G"
+    memory "5G"
+    cpus params.cpus
 
     if(params.mode == "clc"){
         clusterOptions='--qos=normal -C clcbio -p common'
         //clusterOptions='--qos=clcgwb --x11 clcgenomicswb9'
-        cpus params.cpus
+        //cpus params.cpus
     }
     else if(params.mode == "metacompass"){
         beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PATH=/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/kmer-code-2013-trunk/Linux-amd64/bin/:$PATH'
         module = 'Python/3.6.0:samtools/1.3:snakemake/3.5.4:bowtie2/2.2.9'
-        cpus params.cpus
+        //cpus params.cpus
     }
-    else if(params.mode == "ray"){
-        cpus 1
-    }
-    else if(params.mode == "minia"){
-        beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=/pasteur/projets/policy01/Matrix/metagenomics/python-lib/lib/python2.7/site-packages;export LD_LIBRARY_PATH=/pasteur/projets/policy01/Matrix/metagenomics/htslib/lib'
-        module = 'Python/2.7.8'
-    }
-    else{
-        cpus params.cpus
-    }
+    //else if(params.mode == "ray"){
+    //    cpus 1
+    //}
+    //else if(params.mode == "minia"){
+    //    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=/pasteur/projets/policy01/Matrix/metagenomics/python-lib/lib/python2.7/site-packages;export LD_LIBRARY_PATH=/pasteur/projets/policy01/Matrix/metagenomics/htslib/lib'
+    //    module = 'Python/2.7.8:bwa/0.7.7'
+    //}
+    //else{
+    //    cpus params.cpus
+    //}
 
     input:
     //set pair_id, file(forward), file(reverse) from assemblyChannel
     set pair_id, file(forward), file(reverse) from khmerChannel
-    set pair_id, file(rforward), file(rreverse) from redundantChannel
+    //set pair_id, file(forward), file(reverse) from trimChannel
 
     output:
-    set pair_id, file("assembly/*_{clc,megahit,metacompass,minia,ray,spades}.fasta") into contigsChannel
+    set pair_id, file("assembly/*_{clc,megahit,metacompass,ray,spades}.fasta") into contigsChannel
 
     shell:
     """
@@ -251,15 +270,6 @@ process assembly {
             -i !{forward} !{reverse} --cpus !{params.cpus}
         python !{baseDir}/bin/rename_fasta.py -i assembly/contigs.fasta \
                 -s !{pair_id} -o assembly/!{pair_id}_clc.fasta
-    elif [ !{params.mode} ==  "minia" ]
-    then
-        mkdir assembly
-        #interleave-reads.py !{forward} !{reverse} --output assembly/!{pair_id}.pe
-        #minia -in assembly/!{pair_id}.pe -out assembly/!{pair_id} -nb-cores !{params.cpus}
-        !{baseDir}/bin/gatb-minia-pipeline/gatb -1 !{rforward} -2 !{rreverse} \
-            -o !{pair_id}_minia --kmer-sizes 21,33
-        python !{baseDir}/bin/rename_fasta.py -i !{pair_id}_minia.fasta \
-            -o assembly/!{pair_id}_minia.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "metacompass" ]
     then
         python3 !{baseDir}/bin/MetaCompass/go_metacompass.py -P !{forward},!{reverse}  \
@@ -269,7 +279,7 @@ process assembly {
             -o assembly/!{pair_id}_metacompass.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "ray" ]
     then
-        Ray -k 31 -p !{forward} !{reverse} -o assembly/
+        mpirun -n !{params.cpus} Ray -k 31 -p !{forward} !{reverse} -o assembly/
         python !{baseDir}/bin/rename_fasta.py -i assembly/Contigs.fasta \
             -o assembly/!{pair_id}_ray.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "megahit" ]
@@ -279,8 +289,13 @@ process assembly {
             -o assembly/!{pair_id}_megahit.fasta -s !{pair_id}
     else
         mkdir assembly
-        spades.py --meta -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
-        python !{baseDir}/bin/rename_fasta.py -i assembly/scaffolds.fasta \
+        if [ !{params.focus} == "no" ]
+        then
+            spades.py --meta -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
+        else
+            spades.py -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
+        fi
+        python !{baseDir}/bin/rename_fasta.py -i assembly/contigs.fasta \
                 -s !{pair_id} -o assembly/!{pair_id}_spades.fasta
     fi
     """
@@ -293,7 +308,8 @@ process blast {
     //publishDir "$myDir", mode: 'copy'
     //clusterOptions='--qos=normal -p common'
     cpus params.cpus
-    memory "25G"
+    //memory "25G"
+    memory "5G"
 
     input:
     set contigsID, file(contigs) from contigsChannel
@@ -381,7 +397,7 @@ process vp1 {
 }
 
 /*process vp1_vsearch {
-    publishDir "$myDir", mode: 'copy'    
+    publishDir "$myDir", mode: 'copy'
 
     input:
     set contigsID, file(contigs), file(vp1vsearch) from vp1vsearchChannel
@@ -413,7 +429,8 @@ process vp1 {
 process annotation {
     //clusterOptions='--qos=normal -p common'
     publishDir "$myDir", mode: 'copy'
-    memory "10G"
+    //memory "10G"
+
     beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=/pasteur/projets/policy01/Matrix/metagenomics/python-lib//lib/python3.6/site-packages/'
     module = 'Python/3.6.0'
 

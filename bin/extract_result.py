@@ -243,16 +243,16 @@ def load_vp1_id(vp1_id_file):
 def get_vp1(blast_vp1_file):
     """Get vp1 annotation
     """
-    vp1_list = []
+    vp1_dict = {}
     try:
         with open(blast_vp1_file, "rt") as blast_vp1:
             blast_vp1_reader = csv.reader(blast_vp1, delimiter="\t")
             for line in blast_vp1_reader:
-                vp1_list.append(line[0:2] + [round(float(line[8]), 1),
-                                             float(line[3])])
+                vp1_dict[line[0]]= line[1:2] + [round(float(line[8]), 1),
+                                             float(line[3])]
     except IOError:
         sys.exit("Error cannot open {0}".format(blast_vp1_file))
-    return vp1_list
+    return vp1_dict
 
 
 def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
@@ -265,19 +265,20 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
         if ext == ".gz":
             name = os.path.splitext(name)[0]
         name = name.replace("_vp1","")
+        print(sample)
         # Get target length
-        vp1_annotation_list = get_vp1(sample)
-        for vp1 in vp1_annotation_list:
+        vp1_dict = get_vp1(sample)
+        for vp1 in vp1_dict:
             #print(vp1)
             # print(sample_data[name][tag])
             # print(sample_data[name][tag][vp1[0]])
-            print(vp1_id_dict[vp1[1]])
-            if (round(float(vp1[2]),1) >= identity_threshold and
-                round(100.0 * float(vp1[3])/float(vp1_id_dict[vp1[1]][1])) >= coverage_threshold):
+            #print(vp1_id_dict[vp1[1]])
+            if (round(float(vp1_dict[vp1][1]),1) >= identity_threshold and
+                round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= coverage_threshold):
                 # Gives id and coverage against vp1 db
-                sample_data[name][tag][vp1[0]] += (vp1[1:3] +
-                        [round(vp1[3]/float(vp1_id_dict[vp1[1]][1])*100.0,1)] +
-                        [vp1_id_dict[vp1[1]][0]])
+                sample_data[name][tag][vp1] += (vp1_dict[vp1][0:2] +
+                        [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)] +
+                        [vp1_id_dict[vp1_dict[vp1][0]][0]])
     return sample_data
 
 def load_vp1_annotation(vp1_annotation_file, sample_data):
@@ -448,7 +449,7 @@ def main():
     if os.path.isdir(blast_vp1_dir) and args.vp1_id_file:
         vp1_id_dict = load_vp1_id(args.vp1_id_file)
         blast_vp1_file = check_file(blast_vp1_dir + "*_vp1.tsv")
-        print(blast_vp1_file)
+        #print(blast_vp1_file)
         sample_data = associate_vp1(sample_data, blast_vp1_file,
                                     vp1_id_dict, "vp1_contigs",
                                     args.identity_threshold,
@@ -462,7 +463,7 @@ def main():
     if args.count_matrix_file:
         sample_data = get_abundance(sample_data, args.count_matrix_file)
     print("Final")
-    # print(sample_data)
+    print(sample_data["EVD-4_S281"])
     # Write result
     write_result(sample_data, args.output_file, args.annotated)
 

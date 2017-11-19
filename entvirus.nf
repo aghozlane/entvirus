@@ -229,28 +229,28 @@ process assembly {
     publishDir "$myDir", mode: 'copy'
     //memory "20G"
     memory "5G"
-    cpus params.cpus
+    //cpus params.cpus
 
     if(params.mode == "clc"){
         clusterOptions='--qos=normal -C clcbio -p common'
         //clusterOptions='--qos=clcgwb --x11 clcgenomicswb9'
-        //cpus params.cpus
+        cpus params.cpus
     }
     else if(params.mode == "metacompass"){
         beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PATH=/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/kmer-code-2013-trunk/Linux-amd64/bin/:$PATH'
         module = 'Python/3.6.0:samtools/1.3:snakemake/3.5.4:bowtie2/2.2.9'
-        //cpus params.cpus
+        cpus params.cpus
     }
-    //else if(params.mode == "ray"){
-    //    cpus 1
-    //}
+    else if(params.mode == "ray"){
+        cpus 1
+    }
     //else if(params.mode == "minia"){
     //    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=/pasteur/projets/policy01/Matrix/metagenomics/python-lib/lib/python2.7/site-packages;export LD_LIBRARY_PATH=/pasteur/projets/policy01/Matrix/metagenomics/htslib/lib'
     //    module = 'Python/2.7.8:bwa/0.7.7'
     //}
-    //else{
-    //    cpus params.cpus
-    //}
+    else{
+        cpus params.cpus
+    }
 
     input:
     //set pair_id, file(forward), file(reverse) from assemblyChannel
@@ -279,7 +279,7 @@ process assembly {
             -o assembly/!{pair_id}_metacompass.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "ray" ]
     then
-        mpirun -n !{params.cpus} Ray -k 31 -p !{forward} !{reverse} -o assembly/
+        Ray -k 31 -p !{forward} !{reverse} -o assembly/
         python !{baseDir}/bin/rename_fasta.py -i assembly/Contigs.fasta \
             -o assembly/!{pair_id}_ray.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "megahit" ]

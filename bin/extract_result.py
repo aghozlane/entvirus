@@ -265,7 +265,7 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
         if ext == ".gz":
             name = os.path.splitext(name)[0]
         name = name.replace("_vp1","")
-        print(sample)
+        #print(sample)
         # Get target length
         vp1_dict = get_vp1(sample)
         for vp1 in vp1_dict:
@@ -463,7 +463,6 @@ def main():
     if args.count_matrix_file:
         sample_data = get_abundance(sample_data, args.count_matrix_file)
     print("Final")
-    print(sample_data["EVD-4_S281"])
     # Write result
     write_result(sample_data, args.output_file, args.annotated)
 

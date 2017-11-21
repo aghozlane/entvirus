@@ -439,7 +439,7 @@ def main():
     vp1_contigs_dir = args.data_dir + os.sep + "vp1_contigs" + os.sep
     if os.path.isdir(vp1_contigs_dir):
         vp1_contigs_file = check_file(vp1_contigs_dir + "*.fasta")
-        print(vp1_contigs_file)
+        #print(vp1_contigs_file)
         sample_data = get_fasta_data(sample_data, vp1_contigs_file,
                                      "vp1_contigs")
     print("vp1_contigs")

@@ -104,7 +104,6 @@ def parse_gi_to_taxid_taxonomy_file(taxonomy_file):
             taxonomy_reader = csv.reader(taxonomy, delimiter='\t')
             taxonomy_reader.next()
             for line in taxonomy_reader:
-                print(line)
                 gi_taxid_taxonomy_dict[int(line[0])] = line[2]
     except IOError:
         sys.exit("Error cannot open {0}".format(taxonomy_file))

@@ -273,12 +273,19 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
             # print(sample_data[name][tag])
             # print(sample_data[name][tag][vp1[0]])
             #print(vp1_id_dict[vp1[1]])
-            if (round(float(vp1_dict[vp1][1]),1) >= identity_threshold and
-                round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= coverage_threshold):
+            if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
+                round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
                 # Gives id and coverage against vp1 db
                 sample_data[name][tag][vp1] += (vp1_dict[vp1][0:2] +
                         [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)] +
                         [vp1_id_dict[vp1_dict[vp1][0]][0]])
+            else:
+                #print(vp1)
+                #print("pop before")
+                #print(sample_data[name][tag])
+                sample_data[name][tag].pop(vp1,None)
+                #print("pop after")
+                #print(sample_data[name][tag])
     return sample_data
 
 def load_vp1_annotation(vp1_annotation_file, sample_data):
@@ -288,7 +295,8 @@ def load_vp1_annotation(vp1_annotation_file, sample_data):
         with open(vp1_annotation_file, "rt") as vp1_annotation:
             vp1_annotation_reader = csv.reader(vp1_annotation, delimiter="\t")
             for line in vp1_annotation_reader:
-                sample_data["_".join(line[0].split("_")[0:2])]["vp1_contigs"][line[0]] += [line[-4], line[-3], ",".join(line[2:-4])]
+                if line[0] in sample_data["_".join(line[0].split("_")[0:2])]["vp1_contigs"]:
+                    sample_data["_".join(line[0].split("_")[0:2])]["vp1_contigs"][line[0]] += [line[-4], line[-3], ",".join(line[2:-4])]
     except IOError:
         sys.exit("Error cannot open {0}".format(vp1_annotation_file))
     return sample_data
@@ -369,7 +377,9 @@ def write_result(sample_data, output_file, annotated):
                 if "vp1_contigs" in sample_data[sample]:
                     # print("vp1_contigs")
                     for vp1 in sample_data[sample]["vp1_contigs"]:
-                        # print(vp1)
+                        #print(sample_data[sample]["vp1_contigs"])
+                        #print(vp1)
+                        #print(len(vp1))
                         #print(sample_data[sample]["vp1_contigs"][vp1])
                         if "raw_fwd" in sample_data[sample]:
                             #print(sample_data[sample]["vp1_contigs"][vp1])
@@ -450,10 +460,13 @@ def main():
         vp1_id_dict = load_vp1_id(args.vp1_id_file)
         blast_vp1_file = check_file(blast_vp1_dir + "*_vp1.tsv")
         #print(blast_vp1_file)
+        print(sample_data)
         sample_data = associate_vp1(sample_data, blast_vp1_file,
                                     vp1_id_dict, "vp1_contigs",
                                     args.identity_threshold,
                                     args.coverage_threshold)
+        print("after")
+        print(sample_data)
     print("Annotation")
     # Load vp1 annotation
     if args.vp1_annotation_file:

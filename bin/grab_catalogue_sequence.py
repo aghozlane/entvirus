@@ -112,21 +112,26 @@ def extract_interest_elements(list_sequences_file, identity_threshold,
     """Get a list of the element of interest
     """
     list_sequences = []
+    list_reverse_comp = []
     try:
         with open(list_sequences_file, "rt") as list_seq:
             list_sequences_reader = csv.reader(list_seq, delimiter="\t")
             for line in list_sequences_reader:
-                if (float(line[8]) >= identity_threshold and 
+                if (float(line[8]) >= identity_threshold and
                     round(100.0 * float(line[3])/vp1_id_dict[line[1]]) >= coverage_threshold):
                     list_sequences.append(line[0])
+                    # check if the sequence need to be reversed_complemented
+                    if int(line[6]) > int(line[7]):
+                        list_reverse_comp.append(line[0])
             #assert(len(list_sequences) > 0)
             list_sequences.sort()
+            list_reverse_comp.sort()
     except IOError:
         sys.exit("Error cannot the file : {0}".format(list_sequences_file))
     #except AssertionError:
     #    sys.exit("Error no element detected in the file : {0}"
     #             .format(list_sequences_file))
-    return list_sequences
+    return list_sequences, list_reverse_comp
 
 
 # def is_selected(header, list_sequences):
@@ -153,7 +158,7 @@ def get_element(name, input_list):
 
 
 def extract_catalogue_sequence(list_sequences, catalogue_file, not_in_database):
-    """
+    """Extract the sequence from the multifasta
     """
     grab_sequence = False
     interest_sequence = {}
@@ -189,6 +194,19 @@ def fill(text, width=80):
     """Split text"""
     return os.linesep.join(text[i:i+width] for i in xrange(0, len(text), width))
 
+def reverse_complement(dna, complement):
+    """Reverse complement a DNA sequence
+    """
+    return ''.join([complement[base] for base in dna[::-1]])
+
+def rev_comp(interest_sequence, list_reverse_comp):
+    """
+    """
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    for id_comp in list_reverse_comp:
+        interest_sequence[id_comp] = reverse_complement(
+                interest_sequence[id_comp], complement)
+    return interest_sequence
 
 def write_interest_sequence(interest_sequence, identity, output_file):
     """Write extracted sequence
@@ -220,8 +238,9 @@ def main():
     vp1_id_dict = load_vp1_id(args.vp1_id_file)
     # Get List of sequence of interest
     print("Load the list of sequence of interest ...")
-    list_sequences = extract_interest_elements(args.list_sequences_file,
-        args.identity_threshold, args.coverage_threshold, vp1_id_dict)
+    list_sequences, list_reverse_comp = extract_interest_elements(
+        args.list_sequences_file, args.identity_threshold,
+        args.coverage_threshold, vp1_id_dict)
     print("{0} sequences to search".format(len(list_sequences)))
     # Extract catalogue sequence
     print("Extract sequences from the catalogue...")
@@ -229,6 +248,10 @@ def main():
                                                    args.catalogue_file,
                                                    args.not_in_database)
     print("{0} extracted sequences".format(len(interest_sequence)))
+    #
+    if not args.not_in_database:
+        rev_comp(interest_sequence, list_reverse_comp)
+    print()
     # Write sequences
     if not args.output_file:
        args.output_file = "extracted_sequence.fasta"

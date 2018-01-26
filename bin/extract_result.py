@@ -279,7 +279,7 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
                 sample_data[name][tag][vp1] += (vp1_dict[vp1][0:2] +
                         [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)] +
                         [vp1_id_dict[vp1_dict[vp1][0]][0]])
-            else:
+            elif tag in sample_data[name]:
                 #print(vp1)
                 #print("pop before")
                 #print(sample_data[name][tag])
@@ -460,13 +460,13 @@ def main():
         vp1_id_dict = load_vp1_id(args.vp1_id_file)
         blast_vp1_file = check_file(blast_vp1_dir + "*_vp1.tsv")
         #print(blast_vp1_file)
-        print(sample_data)
+        #print(sample_data)
         sample_data = associate_vp1(sample_data, blast_vp1_file,
                                     vp1_id_dict, "vp1_contigs",
                                     args.identity_threshold,
                                     args.coverage_threshold)
-        print("after")
-        print(sample_data)
+        #print("after")
+        #print(sample_data)
     print("Annotation")
     # Load vp1 annotation
     if args.vp1_annotation_file:

@@ -52,15 +52,11 @@ readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}.{fastq,fastq.dsrc2,fa
 params.mail = "amine.ghozlane@pasteur.fr"
 params.databases = "/pasteur/scratch/amine/polston_databases"
 params.cpus = 2
-params.vp1 = "${params.databases}/vp1_seq_nov_17.fasta"
-params.ncbi = "${params.databases}/ncbi_viruses.fna"
-params.rvdb = "${params.databases}/rVDBv10.2.fasta"
-params.uniprot = "${params.databases}/uniprot_taxonomy.fasta"
-params.uniref = "${params.databases}/uniref_uniprot.fasta"
-params.viral = "${params.databases}/viral_catalogue_poltson.fna"
+params.vp1 = "$baseDir/databases/vp1_seq_nov_17.fasta"
+params.viral = "$baseDir/databases/viral_catalogue_poltson.fna"
 params.out = "$baseDir/annotation/"
-//params.nt = "/local/databases/fasta/nt"
-params.nt = "${params.databases}/nt"
+params.nt = "/local/databases/fasta/nt"
+//params.nt = "/pasteur/projets/policy01/Biomics/metagenomics/catalogue/nt"
 params.gitaxidnucl = "/local/databases/release/taxodb/gi_taxid_nucl.dmp"
 params.numberBestannotation = 10
 params.coverage = 0
@@ -73,8 +69,8 @@ params.khmer_reads = "${params.out}/khmer_reads"
 params.blastdir = "${params.out}/blast"
 params.mode = "clc"
 params.filter = 1
-params.vp1info = "/pasteur/scratch/amine/polston_databases/vp1_info_nov_17.tsv"
-params.taxadb = "/pasteur/scratch/amine/polston_databases/taxadb_nucl.sqlite"
+params.vp1info = "$baseDir/databases/vp1_info_nov_17.tsv"
+params.taxadb = "/local/databases/rel/taxadb/current/db/taxadb_full.sqlite"
 params.annotated =  "no"
 params.focus = "no"
 params.readlength = 150
@@ -165,18 +161,6 @@ process trimming {
 
 mappingChannel.subscribe { it.copyTo(cleanDir) }
 
-/*filterChannel = Channel.create()
-nextChannel = Channel.create()
-if( params.filter == 0 ) {
-    trimChannel.into{ nextChannel }
-    filterChannel.close()
-    trimChannel.close()
-}
-else{
-    trimChannel.into{ filterChannel }
-    nextChannel.close()
-    trimChannel.close()
-}*/
 
 process khmer {
     cpus params.cpus
@@ -211,19 +195,6 @@ process khmer {
 
 khmeroutChannel.subscribe{ it.copyTo(khmerDir) }
 
-/*readtoassemblyChannel = Channel.create()
-assemblyChannel = Channel.create()
-readtoassemblyChannel.mix(nextChannel, khmerChannel)
-                     .into{ assemblyChannel }*/
-/*mappingChannel = Channel.create()
-assemblyChannel = Channel.create()
-khmerChannel.into { mappingChannel ; assemblyChannel }*/
-
-/*Channel
-  .fromFilePairs('*-{1,2}.txt')
-    .flatMap { key, files -> [[key], files].combinations() }
-      .collectFile()*/
-
 
 process assembly {
     publishDir "$myDir", mode: 'copy'
@@ -232,8 +203,8 @@ process assembly {
     //cpus params.cpus
 
     if(params.mode == "clc"){
-        clusterOptions='--qos=normal -C clcbio -p common'
-        //clusterOptions='--qos=clcgwb --x11 clcgenomicswb9'
+        //clusterOptions='--qos=normal -C clcbio -p common'
+        clusterOptions='--qos=clcbio'
         cpus params.cpus
     }
     else if(params.mode == "metacompass"){
@@ -317,9 +288,7 @@ process blast {
     output:
     //file("log.txt") into logChannel
     set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel mode flatten
-    //set contigsID, file(contigs), file("blast/*_vp1_vsearch.tsv") into vp1vsearchChannel mode flatten
-    //file("blast_vp1/*.tsv") into vp1blasttocombineChannel
-    set contigsID, file("blast/*_ncbi_all.tsv") into blastChannel mode flatten
+    set contigsID, file("blast/*_nt.tsv") into blastChannel mode flatten
     file("blast/*.tsv") into allblastChannel mode flatten
 
     shell:
@@ -329,35 +298,10 @@ process blast {
            -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
            -task blastn -evalue 1E-3
-    #vsearch --usearch_global !{contigs} --blast6out blast/!{contigsID}_vp1_vsearch.tsv --db !{params.vp1} \
-    #       --id 0.5  --top_hits_only --userfields query+target+id+qrow  \
-    #       --userout blast/!{contigsID}_vp1_vsearch.tsv
-    blastn -query !{contigs}  -db !{params.viral}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_polston.tsv \
-           -max_target_seqs !{params.numberBestannotation} -use_index true \
-           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
-    blastn -query !{contigs}  -db !{params.ncbi}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_ncbi.tsv \
-           -max_target_seqs !{params.numberBestannotation} -use_index true \
-           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
-    blastn -query !{contigs}  -db !{params.rvdb}  -num_threads !{params.cpus} \
-           -max_target_seqs !{params.numberBestannotation} -use_index true \
-           -out blast/!{contigsID}_rvdb.tsv\
-           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
-    blastx -query !{contigs}  -db !{params.uniprot} -num_threads !{params.cpus}\
-           -out blast/!{contigsID}_uniprot.tsv \
-           -max_target_seqs !{params.numberBestannotation} \
-           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
-    blastx -query !{contigs}  -db !{params.uniref}  -num_threads !{params.cpus}\
-           -out blast/!{contigsID}_uniref.tsv \
-           -max_target_seqs !{params.numberBestannotation} \
-           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
     blastn -query !{contigs}  -db !{params.nt}  -num_threads !{params.cpus} \
            -out blast/!{contigsID}_nt.tsv \
            -max_target_seqs !{params.numberBestannotation} \
            -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
-    cat blast/!{contigsID}_ncbi.tsv blast/!{contigsID}_nt.tsv \
-        blast/!{contigsID}_rvdb.tsv > blast/!{contigsID}_ncbi_all.tsv
     """
 }
 
@@ -431,8 +375,8 @@ process annotation {
     publishDir "$myDir", mode: 'copy'
     //memory "10G"
 
-    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PYTHONPATH=/pasteur/projets/policy01/Matrix/metagenomics/python-lib//lib/python3.6/site-packages/'
-    module = 'Python/3.6.0'
+    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
+    module = 'Python/3.6.0:taxadb/0.6.0'
 
     input:
     set contigsID, file(ncbi_annotation) from blastChannel
@@ -449,13 +393,18 @@ process annotation {
     if [ \${nlines} -gt '0' ]
     then
         # Get the taxonomy
-        python3 !{baseDir}/bin/get_taxonomy2.py -i !{ncbi_annotation} \
-                -t !{params.gitaxidnucl} -d !{params.taxadb} \
-                -o annotation/!{contigsID}_taxonomy.tsv
-        python2 !{baseDir}/bin/ExtractNCBIDB.py -f !{ncbi_annotation} \
-                -g annotation/!{contigsID}_taxonomy.tsv \
-                -o annotation/!{ncbi_annotation.baseName}_annotation.tsv \
-                -nb !{params.numberBestannotation} -fc !{params.coverage} -fi
+        python3 !{baseDir}/bin/get_taxonomy3.py -i !{ncbi_annotation} \
+        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy.tsv
+        python2 !{baseDir}/bin/ExtractNCBIDB2.py -f !{ncbi_annotation} \
+        -g annotation/!{contigsID}_taxonomy.tsv -nb !{params.numberBestannotation} \
+        -o annotation/!{ncbi_annotation.baseName}_annotation.tsv
+        #python3 !{baseDir}/bin/get_taxonomy2.py -i !{ncbi_annotation} \
+        #        -t !{params.gitaxidnucl} -d !{params.taxadb} \
+        #        -o annotation/!{contigsID}_taxonomy.tsv
+        #python2 !{baseDir}/bin/ExtractNCBIDB.py -f !{ncbi_annotation} \
+        #        -g annotation/!{contigsID}_taxonomy.tsv \
+        #        -o annotation/!{ncbi_annotation.baseName}_annotation.tsv \
+        #        -nb !{params.numberBestannotation} -fc !{params.coverage} -fi
     else
         touch annotation/!{ncbi_annotation.baseName}_annotation.tsv
         touch annotation/!{ncbi_annotation.baseName}_taxonomy.tsv

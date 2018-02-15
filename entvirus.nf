@@ -50,7 +50,6 @@ readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}.{fastq,fastq.dsrc2,fa
                 .fromPath("${params.in}/*.fasta")
                 .map {file -> tuple(file.baseName.replaceAll(".fasta",""),file)}*/
 params.mail = "amine.ghozlane@pasteur.fr"
-params.databases = "/pasteur/scratch/amine/polston_databases"
 params.cpus = 2
 params.vp1 = "$baseDir/databases/vp1_seq_nov_17.fasta"
 params.viral = "$baseDir/databases/viral_catalogue_poltson.fna"
@@ -62,7 +61,7 @@ params.numberBestannotation = 10
 params.coverage = 0
 params.mismatch = 1
 params.contaminant = "/local/databases/index/bowtie/2.1.0/hg19.fa"
-params.alienseq = "${params.databases}/alienTrimmerPF8contaminants.fasta"
+params.alienseq = "$baseDir/databases/alienTrimmerPF8contaminants.fasta"
 params.minlength = 45
 params.cleaned_reads = "${params.out}/cleaned_reads"
 params.khmer_reads = "${params.out}/khmer_reads"
@@ -75,6 +74,7 @@ params.annotated =  "no"
 params.focus = "no"
 params.readlength = 150
 params.vp1coverage = 50
+params.abundance = "no"
 inDir = file(params.in)
 
 myDir = file(params.out)
@@ -204,7 +204,7 @@ process assembly {
 
     if(params.mode == "clc"){
         //clusterOptions='--qos=normal -C clcbio -p common'
-        clusterOptions='--qos=clcbio'
+        clusterOptions='--qos=clcbio -p common'
         cpus params.cpus
     }
     else if(params.mode == "metacompass"){
@@ -266,7 +266,7 @@ process assembly {
         else
             spades.py -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
         fi
-        python !{baseDir}/bin/rename_fasta.py -i assembly/contigs.fasta \
+        python !{baseDir}/bin/rename_fasta.py -i assembly/scaffolds.fasta \
                 -s !{pair_id} -o assembly/!{pair_id}_spades.fasta
     fi
     """
@@ -415,6 +415,7 @@ process annotation {
 combineChannel = annotationChannel.collectFile(name: 'combined.tsv')
 //vp1contigs_vsearch = vp1contigsvChannel.collectFile(name: 'vp1contigs_vsearch.fasta')
 vp1contigs = vp1contigsChannel.collectFile(name: 'vp1contigs.fasta')
+vp1contigs.into { vp1contigs_mbma; vp1contigs_summary }
 //vp1annotation = vp1blasttocombineChannel.collectFile(name: 'vp1blast.tsv')
 
 process buildIndex {
@@ -423,11 +424,14 @@ process buildIndex {
     //clusterOptions='--qos=normal -p common'
 
     input:
-    file vp1contigs
+    file vp1contigs_mbma
 
     output:
     file("vp1contigs.index*") into vp1contigs_index
-    file(vp1contigs) into vp1contigs_fasta
+    //file(vp1contigs) into vp1contigs_fasta
+
+    when:
+    params.abundance == "yes"
 
     script:
     """
@@ -447,6 +451,8 @@ process abundance_vp1 {
     file(reverse) from r2Channel.toList()
     //file cleanDir
 
+    when:
+    params.abundance == "yes"
 
     output:
     file("abundance/count_matrix.tsv") into countChannel
@@ -477,11 +483,12 @@ process combine_annotation {
 
     input:
     file(ncbi_annotation) from combineChannel
-    file(vp1contigs_fasta) from vp1contigs_fasta
+    file(vp1contigs_fasta) from vp1contigs_summary
 
     output:
     file("contigs_annotation.tsv") into finalChannel mode flatten
     file("vp1contigs_annotation.tsv") into vp1finalChannel
+    file("vp1contigs_annotation.tsv") into vp1finalChannelabundance
     file(vp1contigs_fasta) into vp1contigsfasta
 
     shell:
@@ -529,10 +536,30 @@ process summary {
     file(vp1contigs_annot) from vp1finalChannel
     file myDir
     file inDir
-    file countChannel
 
     output:
     file("result_summary.tsv") into resultChannel
+    //file(vp1contigs_annot) into overChannel
+
+    script:
+    """
+    python ${baseDir}/bin/extract_result.py -i $myDir -a ${params.vp1info}\
+             -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
+             -l ${params.annotated} -v ${params.vp1coverage}
+    """
+}
+
+process summary_abundance {
+    //publishDir "$myDir", mode: 'copy'
+
+    input:
+    file(vp1contigs_annot) from vp1finalChannelabundance
+    file myDir
+    file inDir
+    file countChannel
+
+    output:
+    file("result_summary.tsv") into resultChannelabundance
     //file(vp1contigs_annot) into overChannel
 
     script:
@@ -544,6 +571,8 @@ process summary {
 }
 
 resultChannel.subscribe { it.copyTo(myDir) }
+resultChannelabundance.subscribe { it.copyTo(myDir) }
+
 println "Project : $workflow.projectDir"
 //println "Git info: $workflow.repository - $workflow.revision [$workflow.commitId]"
 println "Cmd line: $workflow.commandLine"

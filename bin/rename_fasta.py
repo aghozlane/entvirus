@@ -76,14 +76,14 @@ def rename_fasta(fasta_file, sample_name, output_file):
             for line in fasta:
                 if line.startswith(">"):
                     if header != "":
-                        print(">{0}_{1}\n{2}".format(sample_name, header,
+                        print(">{0}|{1}\n{2}".format(sample_name, header,
                                 fill(seq)), file=output)
                         seq = ""
                     header=line[1:].replace("\n","").replace("\r", "")
                 elif len(line) > 0:
                     seq += line.replace("\n", "").replace("\r", "")
             if len(line) > 0:
-                print(">{0}_{1}\n{2}".format(sample_name, header,
+                print(">{0}|{1}\n{2}".format(sample_name, header,
                       fill(seq)), file=output)
     except IOError:
         sys.exit("Error cannot open {0}".format(fasta_file))

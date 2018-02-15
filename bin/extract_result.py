@@ -295,8 +295,8 @@ def load_vp1_annotation(vp1_annotation_file, sample_data):
         with open(vp1_annotation_file, "rt") as vp1_annotation:
             vp1_annotation_reader = csv.reader(vp1_annotation, delimiter="\t")
             for line in vp1_annotation_reader:
-                if line[0] in sample_data["_".join(line[0].split("_")[0:2])]["vp1_contigs"]:
-                    sample_data["_".join(line[0].split("_")[0:2])]["vp1_contigs"][line[0]] += [line[-4], line[-3], ",".join(line[2:-4])]
+                if line[0] in sample_data[line[0].split("|")[0]]["vp1_contigs"]:
+                    sample_data[line[0].split("|")[0]]["vp1_contigs"][line[0]] += [line[-4], line[-3], ",".join(line[2:-4])]
     except IOError:
         sys.exit("Error cannot open {0}".format(vp1_annotation_file))
     return sample_data
@@ -355,6 +355,16 @@ def write_result(sample_data, output_file, annotated):
                      "Mean_length_proc_fwd", "Processed_read_rev",
                      "Mean_length_proc_rev", "Number_contigs",
                      "Number_VP1_contigs", "VP1_contigs", "Length_VP1_contigs",
+                     "VP1_contigs_seq", "Map_VP1", "Annotation", "Identity", 
+                     "Coverage", "Map_NCBI", "Annotation_ncbi", "Identity", 
+                     "Coverage", "Raw abundance", "Relative abundance"])
+
+                output_writer.writerow(
+                   info + ["Raw_read_fwd", "Mean_length_raw_fwd","Raw_read_rev",
+                     "Mean_length_raw_rev", "Processed_read_fwd",
+                     "Mean_length_proc_fwd", "Processed_read_rev",
+                     "Mean_length_proc_rev", "Number_contigs",
+                     "Number_VP1_contigs", "VP1_contigs", "Length_VP1_contigs",
                      "VP1_contigs_seq", "Map_VP1", "Identity", "Coverage",
                      "Annotation",  "Identity", "Coverage", "Annotation_ncbi",
                      "Raw abundance", "Relative abundance"])
@@ -382,7 +392,7 @@ def write_result(sample_data, output_file, annotated):
                         #print(len(vp1))
                         #print(sample_data[sample]["vp1_contigs"][vp1])
                         if "raw_fwd" in sample_data[sample]:
-                            #print(sample_data[sample]["vp1_contigs"][vp1])
+                            print(sample_data[sample]["vp1_contigs"][vp1])
                             output_writer.writerow(
                                 tag + sample_data[sample]["raw_fwd"][0:2] +
                                 sample_data[sample]["raw_rev"][0:2] +

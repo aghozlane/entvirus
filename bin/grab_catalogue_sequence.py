@@ -202,7 +202,7 @@ def reverse_complement(dna, complement):
 def rev_comp(interest_sequence, list_reverse_comp):
     """
     """
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
     for id_comp in list_reverse_comp:
         interest_sequence[id_comp] = reverse_complement(
                 interest_sequence[id_comp], complement)

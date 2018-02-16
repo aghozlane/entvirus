@@ -239,24 +239,24 @@ process assembly {
         mkdir assembly
         clc_assembler -o assembly/contigs.fasta -p fb ss 180 250 -q \
             -i !{forward} !{reverse} --cpus !{params.cpus}
-        python !{baseDir}/bin/rename_fasta.py -i assembly/contigs.fasta \
+        rename_fasta.py -i assembly/contigs.fasta \
                 -s !{pair_id} -o assembly/!{pair_id}_clc.fasta
     elif [ !{params.mode} ==  "metacompass" ]
     then
         python3 !{baseDir}/bin/MetaCompass/go_metacompass.py -P !{forward},!{reverse}  \
             -t !{params.cpus} -o assembly/   -l !{params.readlength} --clobber \
             -r !{params.viral}
-            python !{baseDir}/bin/rename_fasta.py -i assembly/metacompass.final.ctg.fa \
+            rename_fasta.py -i assembly/metacompass.final.ctg.fa \
             -o assembly/!{pair_id}_metacompass.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "ray" ]
     then
         Ray -k 31 -p !{forward} !{reverse} -o assembly/
-        python !{baseDir}/bin/rename_fasta.py -i assembly/Contigs.fasta \
+        rename_fasta.py -i assembly/Contigs.fasta \
             -o assembly/!{pair_id}_ray.fasta -s !{pair_id}
     elif [ !{params.mode} ==  "megahit" ]
     then
         megahit -1 !{forward} -2 !{reverse} -o assembly/ -t !{params.cpus}
-        python !{baseDir}/bin/rename_fasta.py -i assembly/final.contigs.fa \
+        rename_fasta.py -i assembly/final.contigs.fa \
             -o assembly/!{pair_id}_megahit.fasta -s !{pair_id}
     else
         mkdir assembly
@@ -266,7 +266,7 @@ process assembly {
         else
             spades.py -1 !{forward} -2 !{reverse} -t !{params.cpus} -o assembly/
         fi
-        python !{baseDir}/bin/rename_fasta.py -i assembly/scaffolds.fasta \
+        rename_fasta.py -i assembly/scaffolds.fasta \
                 -s !{pair_id} -o assembly/!{pair_id}_spades.fasta
     fi
     """
@@ -327,11 +327,11 @@ process vp1 {
     if [ \${nlines} -gt '0' ]
     then
         # Extract VP1 sequence
-        python !{baseDir}/bin/extract_sequence.py -q !{contigs} -b !{vp1blast} \
+        extract_sequence.py -q !{contigs} -b !{vp1blast} \
                -o vp1/!{contigsID}_vp1.fasta -a !{params.vp1info} \
                -c !{params.vp1coverage}
         # Extract VP1 contig
-        python !{baseDir}/bin/grab_catalogue_sequence.py -i !{vp1blast} \
+        grab_catalogue_sequence.py -i !{vp1blast} \
                -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs.fasta \
                -a !{params.vp1info} -v !{params.vp1coverage}
     else
@@ -358,10 +358,10 @@ process vp1 {
     if [ \${nlines} -gt '0' ]
     then
         # Extract VP1 sequence
-        python !{baseDir}/bin/extract_sequence_vsearch.py -i !{vp1vsearch} \
+        extract_sequence_vsearch.py -i !{vp1vsearch} \
                -o vp1/!{contigsID}_vp1_vsearch.fasta -a !{params.vp1info}
         # Extract VP1 contig
-        python !{baseDir}/bin/grab_catalogue_sequence.py -i !{vp1vsearch} \
+        grab_catalogue_sequence.py -i !{vp1vsearch} \
                -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs_vsearch.fasta
     else
         touch vp1_contigs/!{contigsID}_vp1_contigs_vsearch.fasta vp1/!{contigsID}_vp1_vsearch.fasta
@@ -393,18 +393,11 @@ process annotation {
     if [ \${nlines} -gt '0' ]
     then
         # Get the taxonomy
-        python3 !{baseDir}/bin/get_taxonomy3.py -i !{ncbi_annotation} \
+        get_taxonomy3.py -i !{ncbi_annotation} \
         -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy.tsv
-        python2 !{baseDir}/bin/ExtractNCBIDB2.py -f !{ncbi_annotation} \
+        ExtractNCBIDB2.py -f !{ncbi_annotation} \
         -g annotation/!{contigsID}_taxonomy.tsv -nb !{params.numberBestannotation} \
         -o annotation/!{ncbi_annotation.baseName}_annotation.tsv
-        #python3 !{baseDir}/bin/get_taxonomy2.py -i !{ncbi_annotation} \
-        #        -t !{params.gitaxidnucl} -d !{params.taxadb} \
-        #        -o annotation/!{contigsID}_taxonomy.tsv
-        #python2 !{baseDir}/bin/ExtractNCBIDB.py -f !{ncbi_annotation} \
-        #        -g annotation/!{contigsID}_taxonomy.tsv \
-        #        -o annotation/!{ncbi_annotation.baseName}_annotation.tsv \
-        #        -nb !{params.numberBestannotation} -fc !{params.coverage} -fi
     else
         touch annotation/!{ncbi_annotation.baseName}_annotation.tsv
         touch annotation/!{ncbi_annotation.baseName}_taxonomy.tsv
@@ -498,7 +491,7 @@ process combine_annotation {
     if [ \${nlines} -gt '0' ]
     then
         # Combine the annotation
-        python !{baseDir}/bin/combine_annotation.py -i !{ncbi_annotation} \
+        combine_annotation.py -i !{ncbi_annotation} \
             -o contigs_annotation.tsv
         nannot=\$(wc -l contigs_annotation.tsv|cut -f 1 -d ' ')
         if [ \${nannot} -gt '0' ]
@@ -509,7 +502,7 @@ process combine_annotation {
             if [ \${nvp1} -gt '0' ]
             then
                 # Extract vp1 annotation
-                python !{baseDir}/bin/strange.py -i contigs_annotation.tsv \
+                strange.py -i contigs_annotation.tsv \
                     -c list -o vp1contigs_annotation.tsv
             else
                 touch vp1contigs_annotation.tsv
@@ -543,9 +536,9 @@ process summary {
 
     script:
     """
-    python ${baseDir}/bin/extract_result.py -i $myDir -a ${params.vp1info}\
-             -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
-             -l ${params.annotated} -v ${params.vp1coverage}
+    extract_result.py -i $myDir -a ${params.vp1info}\
+           -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
+           -l ${params.annotated} -v ${params.vp1coverage}
     """
 }
 
@@ -564,9 +557,9 @@ process summary_abundance {
 
     script:
     """
-    python ${baseDir}/bin/extract_result.py -i $myDir -a ${params.vp1info}\
-             -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
-             -c ${countChannel} -l ${params.annotated} -v ${params.vp1coverage}
+    extract_result.py -i $myDir -a ${params.vp1info}\
+        -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
+        -c ${countChannel} -l ${params.annotated} -v ${params.vp1coverage}
     """
 }
 

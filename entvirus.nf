@@ -151,7 +151,7 @@ process trimming {
     script:
     """
     AlienTrimmer -if ${forward} -ir ${reverse} -of ${pair_id}_R1.fastq \
-                 -or ${pair_id}_R2.fastq -os ${pair_id}_sgl.fastq \
+                 -or ${pair_id}_R2.fastq \
                  -c ${params.alienseq} -l ${params.minlength}
     gzip -c ${pair_id}_R1.fastq >  ${pair_id}_R1.fastq.gz
     gzip -c ${pair_id}_R2.fastq > ${pair_id}_R2.fastq.gz

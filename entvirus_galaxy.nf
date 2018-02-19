@@ -59,7 +59,6 @@ params.vp1 = "$baseDir/databases/vp1_seq_nov_17.fasta"
 params.viral = "$baseDir/databases/viral_catalogue_poltson.fna"
 //params.out = "$baseDir/annotation/"
 params.nt = "/local/databases/fasta/nt"
-//params.nt = "/pasteur/projets/policy01/Biomics/metagenomics/catalogue/nt"
 params.gitaxidnucl = "/local/databases/release/taxodb/gi_taxid_nucl.dmp"
 params.numberBestannotation = 10
 params.coverage = 0

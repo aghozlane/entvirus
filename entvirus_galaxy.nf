@@ -85,14 +85,14 @@ inDir = file(params.in)
 //myDir = file(params.out)
 //myDir.mkdirs()
 
-cleanDir = file("${params.cleaned_reads}")
-cleanDir.mkdirs()
+//cleanDir = file("${params.cleaned_reads}")
+//cleanDir.mkdirs()
 
-khmerDir = file("${params.khmer_reads}")
-khmerDir.mkdirs()
+//khmerDir = file("${params.khmer_reads}")
+//khmerDir.mkdirs()
 
-blastDir = file("${params.blastdir}")
-blastDir.mkdirs()
+//blastDir = file("${params.blastdir}")
+//blastDir.mkdirs()
 
 
 process filtering {
@@ -137,7 +137,7 @@ process trimming {
     set pair_id, file("*_R1.fastq"), file("*_R2.fastq") into trimChannel
     file("*_R1.fastq") into r1Channel
     file("*_R2.fastq") into r2Channel
-    file("*.fastq.gz") into mappingChannel mode flatten
+    //file("*.fastq.gz") into mappingChannel mode flatten
 
     script:
     """
@@ -150,7 +150,7 @@ process trimming {
 
 }
 
-mappingChannel.subscribe { it.copyTo(cleanDir) }
+//mappingChannel.subscribe { it.copyTo(cleanDir) }
 
 
 process khmer {
@@ -164,7 +164,7 @@ process khmer {
 
     output:
     set pair_id, file("khmer/*_R1.fastq"), file("khmer/*_R2.fastq") into khmerChannel
-    file("khmer/*.fastq.gz") into khmeroutChannel mode flatten
+    //file("khmer/*.fastq.gz") into khmeroutChannel mode flatten
 
     shell:
     """
@@ -184,7 +184,7 @@ process khmer {
     """
 }
 
-khmeroutChannel.subscribe{ it.copyTo(khmerDir) }
+//khmeroutChannel.subscribe{ it.copyTo(khmerDir) }
 
 
 process assembly {
@@ -280,7 +280,7 @@ process blast {
     //file("log.txt") into logChannel
     set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel mode flatten
     set contigsID, file("blast/*_nt.tsv") into blastChannel mode flatten
-    file("blast/*.tsv") into allblastChannel mode flatten
+    //file("blast/*.tsv") into allblastChannel mode flatten
 
     shell:
     """
@@ -296,7 +296,7 @@ process blast {
     """
 }
 
-allblastChannel.subscribe { it.copyTo(blastDir) }
+//allblastChannel.subscribe { it.copyTo(blastDir) }
 
 
 // Extract vp1 sequences
@@ -363,7 +363,7 @@ process vp1 {
 // Extract ncbi tree
 process annotation {
     //clusterOptions='--qos=normal -p common'
-    publishDir "$myDir", mode: 'copy'
+    //publishDir "$myDir", mode: 'copy'
     //memory "10G"
 
     beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
@@ -389,13 +389,6 @@ process annotation {
         python2 !{baseDir}/bin/ExtractNCBIDB2.py -f !{ncbi_annotation} \
         -g annotation/!{contigsID}_taxonomy.tsv -nb !{params.numberBestannotation} \
         -o annotation/!{ncbi_annotation.baseName}_annotation.tsv
-        #python3 !{baseDir}/bin/get_taxonomy2.py -i !{ncbi_annotation} \
-        #        -t !{params.gitaxidnucl} -d !{params.taxadb} \
-        #        -o annotation/!{contigsID}_taxonomy.tsv
-        #python2 !{baseDir}/bin/ExtractNCBIDB.py -f !{ncbi_annotation} \
-        #        -g annotation/!{contigsID}_taxonomy.tsv \
-        #        -o annotation/!{ncbi_annotation.baseName}_annotation.tsv \
-        #        -nb !{params.numberBestannotation} -fc !{params.coverage} -fi
     else
         touch annotation/!{ncbi_annotation.baseName}_annotation.tsv
         touch annotation/!{ncbi_annotation.baseName}_taxonomy.tsv

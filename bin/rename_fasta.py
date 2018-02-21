@@ -71,6 +71,7 @@ def rename_fasta(fasta_file, sample_name, output_file):
         output = open(output_file, "wt")
     seq = ""
     header = ""
+    line = ""
     try:
         with open(fasta_file, "rt") as fasta:
             for line in fasta:

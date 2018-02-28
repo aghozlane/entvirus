@@ -265,14 +265,9 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
         if ext == ".gz":
             name = os.path.splitext(name)[0]
         name = name.replace("_vp1","")
-        #print(sample)
         # Get target length
         vp1_dict = get_vp1(sample)
         for vp1 in vp1_dict:
-            #print(vp1)
-            # print(sample_data[name][tag])
-            # print(sample_data[name][tag][vp1[0]])
-            #print(vp1_id_dict[vp1[1]])
             if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
                 round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
                 # Gives id and coverage against vp1 db
@@ -280,12 +275,7 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
                         [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)] +
                         [vp1_id_dict[vp1_dict[vp1][0]][0]])
             elif tag in sample_data[name]:
-                #print(vp1)
-                #print("pop before")
-                #print(sample_data[name][tag])
                 sample_data[name][tag].pop(vp1,None)
-                #print("pop after")
-                #print(sample_data[name][tag])
     return sample_data
 
 def load_vp1_annotation(vp1_annotation_file, sample_data):
@@ -336,7 +326,7 @@ def get_abundance(sample_data, count_matrix_file):
     return sample_data
 
 
-def write_result(sample_data, output_file, annotated):
+def write_result(sample_data, output_file, annotated, count_matrix_file):
     """
     """
     #id_tag = {"SEW":"Sewage", "SUP":"Supernatant", "CON":"Concentrate",
@@ -348,7 +338,7 @@ def write_result(sample_data, output_file, annotated):
     try:
         with open(output_file, "wt") as output:
             output_writer = csv.writer(output, delimiter="\t")
-            if "raw_fwd" in sample_data[sample_data.keys()[0]]:
+            if count_matrix_file:
                 # output_writer.writerow(
                 #    info + ["Raw_read_fwd", "Mean_length_raw_fwd","Raw_read_rev",
                 #      "Mean_length_raw_rev", "Processed_read_fwd",
@@ -370,7 +360,8 @@ def write_result(sample_data, output_file, annotated):
                      "Raw abundance", "Relative abundance"])
             else:
                 output_writer.writerow(
-                    info + ["Processed_read_fwd", "Mean_length_proc_fwd",
+                    info + ["Raw_read_fwd", "Mean_length_raw_fwd","Raw_read_rev",
+                     "Processed_read_fwd", "Mean_length_proc_fwd",
                      "Processed_read_rev", "Mean_length_proc_rev",
                      "Number_contigs", "Number_VP1_contigs", "VP1_contigs",
                      "Length_VP1_contigs", "VP1_contigs_seq", "Map_VP1",
@@ -384,48 +375,67 @@ def write_result(sample_data, output_file, annotated):
                     tag = [sample]
                 # print(sample)
                 # Get distric, group
-                if "vp1_contigs" in sample_data[sample]:
-                    # print("vp1_contigs")
-                    for vp1 in sample_data[sample]["vp1_contigs"]:
-                        #print(sample_data[sample]["vp1_contigs"])
-                        #print(vp1)
-                        #print(len(vp1))
-                        #print(sample_data[sample]["vp1_contigs"][vp1])
+                if "assembly" in sample_data[sample]:
+                    if "vp1_contigs" in sample_data[sample]:
+                        if len(sample_data[sample]["vp1_contigs"]) == 0:
+                            output_writer.writerow(
+                                    tag + sample_data[sample]["raw_fwd"][0:2] +
+                                    sample_data[sample]["raw_rev"][0:2] +
+                                    sample_data[sample]["proc_fwd"][0:2] +
+                                    sample_data[sample]["proc_rev"][0:2] +
+                                    [len(sample_data[sample]["assembly"]),
+                                     0])
+                        # print("vp1_contigs")
+                        for vp1 in sample_data[sample]["vp1_contigs"]:
+                            #print(sample_data[sample]["vp1_contigs"])
+                            #print(vp1)
+                            #print(len(vp1))
+                            #print(sample_data[sample]["vp1_contigs"][vp1])
+                            if "raw_fwd" in sample_data[sample]:
+                                output_writer.writerow(
+                                    tag + sample_data[sample]["raw_fwd"][0:2] +
+                                    sample_data[sample]["raw_rev"][0:2] +
+                                    sample_data[sample]["proc_fwd"][0:2] +
+                                    sample_data[sample]["proc_rev"][0:2] +
+                                    [len(sample_data[sample]["assembly"]),
+                                     len(sample_data[sample]["vp1_contigs"]),
+                                     vp1] +
+                                    sample_data[sample]["vp1_contigs"][vp1])
+                            else:
+                                #print("nono: " + sample)
+                                output_writer.writerow(
+                                    tag + [0] *4 + 
+                                    sample_data[sample]["proc_fwd"][0:2] +
+                                    sample_data[sample]["proc_rev"][0:2] +
+                                    [len(sample_data[sample]["assembly"]),
+                                     len(sample_data[sample]["vp1_contigs"]),
+                                     vp1] +
+                                    sample_data[sample]["vp1_contigs"][vp1])
+                    else:
                         if "raw_fwd" in sample_data[sample]:
-                            print(sample_data[sample]["vp1_contigs"][vp1])
                             output_writer.writerow(
                                 tag + sample_data[sample]["raw_fwd"][0:2] +
                                 sample_data[sample]["raw_rev"][0:2] +
                                 sample_data[sample]["proc_fwd"][0:2] +
                                 sample_data[sample]["proc_rev"][0:2] +
-                                [len(sample_data[sample]["assembly"]),
-                                 len(sample_data[sample]["vp1_contigs"]),
-                                 vp1] +
-                                sample_data[sample]["vp1_contigs"][vp1])
+                                [len(sample_data[sample]["assembly"]), 0])
                         else:
-                            #print("nono: " + sample)
                             output_writer.writerow(
-                                tag + sample_data[sample]["proc_fwd"][0:2] +
+                                tag + [0] *4 + sample_data[sample]["proc_fwd"][0:2] +
                                 sample_data[sample]["proc_rev"][0:2] +
-                                [len(sample_data[sample]["assembly"]),
-                                 len(sample_data[sample]["vp1_contigs"]),
-                                 vp1] +
-                                sample_data[sample]["vp1_contigs"][vp1])
+                                [len(sample_data[sample]["assembly"]), 0])
                 else:
-                    #print("no :" + sample)
-                    # print("NO ?:")
                     if "raw_fwd" in sample_data[sample]:
                         output_writer.writerow(
-                            tag + sample_data[sample]["raw_fwd"][0:2] +
-                            sample_data[sample]["raw_rev"][0:2] +
-                            sample_data[sample]["proc_fwd"][0:2] +
-                            sample_data[sample]["proc_rev"][0:2] +
-                            [len(sample_data[sample]["assembly"]), 0])
+                                tag + sample_data[sample]["raw_fwd"][0:2] +
+                                sample_data[sample]["raw_rev"][0:2] +
+                                sample_data[sample]["proc_fwd"][0:2] +
+                                sample_data[sample]["proc_rev"][0:2] + [0])
                     else:
+                        print("no assembly for sample {0}".format(sample))
                         output_writer.writerow(
-                            tag + sample_data[sample]["proc_fwd"][0:2] +
-                            sample_data[sample]["proc_rev"][0:2] +
-                            [len(sample_data[sample]["assembly"], 0)])
+                                tag + [0] *4 + sample_data[sample]["proc_fwd"][0:2] +
+                                sample_data[sample]["proc_rev"][0:2] + [0])
     except IOError:
         sys.exit("Error cannot open {0}".format(output_file))
 
@@ -447,14 +457,14 @@ def main():
         cleaned_reads_file = ([list_r1] + [[r.replace("R1", "R2") for r in list_r1]])
         sample_data = get_reads_data(sample_data, cleaned_reads_file, "proc")
     print("Cleaned")
-    # print(sample_data)
+    #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check contigs
     contigs_dir = args.data_dir + os.sep + "assembly" + os.sep
     if os.path.isdir(contigs_dir):
         contigs_file = check_file(contigs_dir + "*.fasta")
         sample_data = get_fasta_data(sample_data, contigs_file, "assembly")
     print("Contigs")
-    # print(sample_data)
+    #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check vp1 contigs
     vp1_contigs_dir = args.data_dir + os.sep + "vp1_contigs" + os.sep
     if os.path.isdir(vp1_contigs_dir):
@@ -463,7 +473,7 @@ def main():
         sample_data = get_fasta_data(sample_data, vp1_contigs_file,
                                      "vp1_contigs")
     print("vp1_contigs")
-    # print(sample_data)
+    #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check annotation
     blast_vp1_dir = args.data_dir + os.sep + "blast" + os.sep
     if os.path.isdir(blast_vp1_dir) and args.vp1_id_file:
@@ -478,16 +488,19 @@ def main():
         #print("after")
         #print(sample_data)
     print("Annotation")
+    #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Load vp1 annotation
     if args.vp1_annotation_file:
         sample_data = load_vp1_annotation(args.vp1_annotation_file, sample_data)
     print("vp1_contigs abundance")
+    #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Load vp1 abundance
     if args.count_matrix_file:
         sample_data = get_abundance(sample_data, args.count_matrix_file)
     print("Final")
+    #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Write result
-    write_result(sample_data, args.output_file, args.annotated)
+    write_result(sample_data, args.output_file, args.annotated, args.count_matrix_file)
 
 
 if __name__ == "__main__":

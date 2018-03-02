@@ -361,6 +361,7 @@ def write_result(sample_data, output_file, annotated, count_matrix_file):
             else:
                 output_writer.writerow(
                     info + ["Raw_read_fwd", "Mean_length_raw_fwd","Raw_read_rev",
+                     "Mean_length_raw_rev",
                      "Processed_read_fwd", "Mean_length_proc_fwd",
                      "Processed_read_rev", "Mean_length_proc_rev",
                      "Number_contigs", "Number_VP1_contigs", "VP1_contigs",

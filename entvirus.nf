@@ -204,7 +204,7 @@ process assembly {
 
     if(params.mode == "clc"){
         //clusterOptions='--qos=normal -C clcbio -p common'
-        clusterOptions='--qos=clcbio -p common'
+        clusterOptions='--qos=clcbio -p clcbio'
         cpus params.cpus
     }
     else if(params.mode == "metacompass"){

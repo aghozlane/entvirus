@@ -25,19 +25,6 @@ __maintainer__ = "Amine Ghozlane"
 __email__ = "amine.ghozlane@pasteur.fr"
 __status__ = "Developpement"
 
-def isfile(path):
-    """Check if path is an existing file.
-      Arguments:
-          path: Path to the file
-    """
-    if not os.path.isfile(path):
-        if os.path.isdir(path):
-            msg = "{0} is a directory".format(path)
-        else:
-            msg = "{0} does not exist.".format(path)
-        raise argparse.ArgumentTypeError(msg)
-    return path
-
 
 def getArguments():
     """Retrieves the arguments of the program.
@@ -46,7 +33,7 @@ def getArguments():
     # Parsing arguments
     parser = argparse.ArgumentParser(description=__doc__, usage=
                                      "{0} -h".format(sys.argv[0]))
-    parser.add_argument('-i', dest='fasta_file', type=isfile, required=True,
+    parser.add_argument('-i', dest='fasta_file', type=str, required=False,
                         help='Path to the fasta file.')
     parser.add_argument('-s', dest='sample_name', type=str, default="",
                         help='New name.', required=True)
@@ -96,8 +83,12 @@ def main():
     """Main program
     """
     args = getArguments()
-    rename_fasta(args.fasta_file, args.sample_name, args.output_file)
-
+    if os.path.isfile(args.fasta_file):
+        rename_fasta(args.fasta_file, args.sample_name, args.output_file)
+    else:
+        # Open an empty file
+        open(args.output_file, "wt").close()
+        open(args.fasta_file, "wt").close()
 
 if __name__ == '__main__':
     main()

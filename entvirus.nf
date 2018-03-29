@@ -297,7 +297,7 @@ process blast {
     blastn -query !{contigs}  -db !{params.vp1}  -num_threads !{params.cpus} \
            -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
-           -task blastn -evalue 1E-3
+           -task blastn -evalue 1E-3 -max_hsps 1
     blastn -query !{contigs}  -db !{params.nt}  -num_threads !{params.cpus} \
            -out blast/!{contigsID}_nt.tsv \
            -max_target_seqs !{params.numberBestannotation} \

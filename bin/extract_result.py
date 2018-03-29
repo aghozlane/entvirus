@@ -274,8 +274,9 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
                 sample_data[name][tag][vp1] += (vp1_dict[vp1][0:2] +
                         [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)] +
                         [vp1_id_dict[vp1_dict[vp1][0]][0]])
-            elif tag in sample_data[name]:
-                sample_data[name][tag].pop(vp1,None)
+            #elif tag in sample_data[name]:
+            #    print(sample_data[name][tag])
+            #    sample_data[name][tag].pop(vp1,None)
     return sample_data
 
 def load_vp1_annotation(vp1_annotation_file, sample_data):
@@ -345,8 +346,8 @@ def write_result(sample_data, output_file, annotated, count_matrix_file):
                 #      "Mean_length_proc_fwd", "Processed_read_rev",
                 #      "Mean_length_proc_rev", "Number_contigs",
                 #      "Number_VP1_contigs", "VP1_contigs", "Length_VP1_contigs",
-                #      "VP1_contigs_seq", "Map_VP1", "Annotation", "Identity", 
-                #      "Coverage", "Map_NCBI", "Annotation_ncbi", "Identity", 
+                #      "VP1_contigs_seq", "Map_VP1", "Annotation", "Identity",
+                #      "Coverage", "Map_NCBI", "Annotation_ncbi", "Identity",
                 #      "Coverage", "Raw abundance", "Relative abundance"])
 
                 output_writer.writerow(
@@ -405,7 +406,7 @@ def write_result(sample_data, output_file, annotated, count_matrix_file):
                             else:
                                 #print("nono: " + sample)
                                 output_writer.writerow(
-                                    tag + [0] *4 + 
+                                    tag + [0] *4 +
                                     sample_data[sample]["proc_fwd"][0:2] +
                                     sample_data[sample]["proc_rev"][0:2] +
                                     [len(sample_data[sample]["assembly"]),

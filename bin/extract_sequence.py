@@ -178,7 +178,7 @@ def rev_comp(dna, complement):
 def extract_sequence(position_dict, contigs_file, output_file, identity):
     """
     """
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
     contig_seq = ""
     idname = ""
     if identity:

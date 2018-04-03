@@ -51,7 +51,8 @@ readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}.{fastq,fastq.dsrc2,fa
                 .map {file -> tuple(file.baseName.replaceAll(".fasta",""),file)}*/
 params.mail = "amine.ghozlane@pasteur.fr"
 params.cpus = 2
-params.vp1 = "$baseDir/databases/vp1_seq_nov_17.fasta"
+params.vp1 = "$baseDir/databases/SEQ-EV-vp1-2018-03.fasta"
+params.p1 = "$baseDir/databases/SEQ-EV-P1-2018-03.fa"
 params.viral = "$baseDir/databases/viral_catalogue_poltson.fna"
 params.out = "$baseDir/annotation/"
 params.nt = "/local/databases/fasta/nt"
@@ -68,13 +69,16 @@ params.khmer_reads = "${params.out}/khmer_reads"
 params.blastdir = "${params.out}/blast"
 params.mode = "clc"
 params.filter = 1
-params.vp1info = "$baseDir/databases/vp1_info_nov_17.tsv"
+params.vp1info = "$baseDir/databases/SEQ-EV-vp1-2018-03.tsv"
+params.p1info = "$baseDir/databases/SEQ-EV-P1-2018-03.tsv"
 params.taxadb = "/local/databases/rel/taxadb/current/db/taxadb_full.sqlite"
 params.annotated =  "no"
 params.focus = "no"
 params.readlength = 150
 params.vp1coverage = 50
+params.p1coverage = 50
 params.abundance = "no"
+params.evalue = 1E-3
 inDir = file(params.in)
 
 myDir = file(params.out)
@@ -287,8 +291,9 @@ process blast {
 
     output:
     //file("log.txt") into logChannel
-    set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel mode flatten
-    set contigsID, file("blast/*_nt.tsv") into blastChannel mode flatten
+    set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel
+    set contigsID, file(contigs), file("blast/*_p1.tsv") into p1blastChannel
+    set contigsID, file("blast/*_nt.tsv") into blastChannel
     file("blast/*.tsv") into allblastChannel mode flatten
 
     shell:
@@ -297,9 +302,13 @@ process blast {
     blastn -query !{contigs}  -db !{params.vp1}  -num_threads !{params.cpus} \
            -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
-           -task blastn -evalue 1E-3 -max_hsps 1
+           -task blastn -evalue !{params.evalue} -max_hsps 1
+    blastn -query !{contigs} -db !{params.p1} -num_threads !{params.cpus} \
+           -out blast/!{contigsID}_p1.tsv -max_target_seqs 1 \
+           -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
+           -task blastn -evalue !{params.evalue} -max_hsps 1
     blastn -query !{contigs}  -db !{params.nt}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_nt.tsv \
+           -out blast/!{contigsID}_nt.tsv -evalue !{params.evalue}\
            -max_target_seqs !{params.numberBestannotation} \
            -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
     """
@@ -307,6 +316,34 @@ process blast {
 
 allblastChannel.subscribe { it.copyTo(blastDir) }
 
+process p1 {
+    publishDir "$myDir", mode: 'copy'
+
+    input:
+    set contigsID, file(contigs), file(p1blast) from p1blastChannel
+
+    output:
+    file("p1/*_p1.fasta") into p1Channel
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir p1
+    nlines=\$(wc -l !{p1blast} |cut -f 1 -d ' ')
+    if [ \${nlines} -gt '0' ]
+    then
+       # Extract VP1 sequence
+       extract_sequence.py -q !{contigs} -b !{p1blast} \
+            -o p1/!{contigsID}_p1.fasta -a !{params.p1info} \
+            -c !{params.p1coverage}
+    else
+        touch p1/!{contigsID}_p1.fasta
+   fi
+   """
+}
+
+p1Channel.collectFile(name: 'p1sequences.fasta')
+         .subscribe { it.copyTo(myDir) }
 
 // Extract vp1 sequences
 process vp1 {

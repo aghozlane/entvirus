@@ -72,7 +72,9 @@ def get_arguments():
     parser.add_argument('-t', dest='tag', type=str, required=True,
                         choices=["Contigs_with_VP1", "P1_sequences", "VP1_sequences"],
                         help='Tag possible value.')
-    parser.add_argument('-r', dest='results', type=isdir,
+    parser.add_argument('-r', dest='root_seq_file', type=isfile,
+                        help='Path to the sequence to root the tree.')
+    parser.add_argument('-o', dest='results', type=isdir,
                         default=os.curdir + os.sep,
                         help='Path to result directory.')
     return parser.parse_args()
@@ -87,7 +89,7 @@ def get_query(query_file, tag):
             query_reader = csv.reader(query, delimiter="\t")
             header = query_reader.next()
             interest_seq_posit = header.index(tag)
-            interest_type_posit = header.index("Annotation_VP1")
+            interest_type_posit = header.index("Serotype_VP1")
             for line in query_reader:
                 line_len = len(line)
                 #print(line_len)
@@ -164,19 +166,27 @@ def fill(text, width=80):
     return os.linesep.join(text[i:i+width] for i in xrange(0, len(text), width))
 
 
-def write_sequence(results, sequence_data, query_dict, association_dict, serotype, tag):
+def write_sequence(results, sequence_data, query_dict, association_dict,
+                   serotype, tag, root_seq_file):
     """
     """
+    root_lines = ""
     output_list = []
     try:
         for serty in serotype:
             output_file = results + os.sep + serty + "_" + tag + ".fasta"
+            if root_seq_file:
+                output_file = results + os.sep + serty + "_" + tag + "_rooted.fasta"
+                with open(root_seq_file, "rt") as root_seq:
+                    root_lines = root_seq.readlines()
             output_list += [open(output_file, "wt")]
         for seq in sequence_data:
             interest_ser_posit = serotype.index(association_dict[query_dict[seq]])
             output_list[interest_ser_posit].write(">{1}{0}{2}{0}".format(
                 os.linesep, seq, fill(sequence_data[seq])))
+        
         for output in output_list:
+            output.writelines(root_lines)
             output.close()
     except IOError:
         sys.exit("Error : cannot open {0}".format(output_file))
@@ -199,7 +209,7 @@ def main():
     # Write the new fasta file
     print("Write the new fasta")
     write_sequence(args.results, sequence_data, query_dict, association_dict,
-                   serotype, tag_dict[args.tag])
+                   serotype, tag_dict[args.tag], args.root_seq_file)
     print("Done")
 
 if __name__ == '__main__':

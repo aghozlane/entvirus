@@ -92,7 +92,7 @@ def get_arguments():
                         help='P1 database annotation')
     parser.add_argument('-vp1', dest='vp1_annotation_file', type=isfile,
                         default=None, help='VP1 annotation')
-    parser.add_argument('-c', dest='count_matrix_file', type=isfile,
+    parser.add_argument('-n', dest='count_matrix_file', type=isfile,
                         default=None, help='Count matrix')
     parser.add_argument('-l', dest='annotated', type=str,
                         default="no", help='Annotated read files (default no)')
@@ -100,8 +100,16 @@ def get_arguments():
                         default=0.0, help='Identity threshold (default 0.0)')
     parser.add_argument('-v', dest='coverage_threshold', type=float,
                         default=0.0, help='Coverage threshold (default 0.0)')
+    parser.add_argument('-s', dest='serotype_association_file', type=isfile, 
+                        required=True, help='Path to the serotype association file.')
     parser.add_argument('-o', dest='output_file', type=str, required=True,
                         help='Output file')
+    parser.add_argument('-os', dest='output_serotype_file', type=str,
+                        help='Output serotype file')
+    parser.add_argument('-oc', dest='output_occurence_file', type=str,
+                        help='Output occurence file')
+    parser.add_argument('-oa', dest='output_annotation_file', type=str,
+                        help='Output annotation of contigs file')
     return parser.parse_args()
 
 
@@ -143,8 +151,10 @@ def parse_fastq(fastq_file):
         else:
             fastq = open(fastq_file, "rt")
         for line in fastq:
-            # Get the sequence
-            seq_len_tab.append(len(fastq.next()))
+            lenfastq = len(fastq.next())
+            if lenfastq > 0:
+                # Get the sequence
+                seq_len_tab.append(lenfastq)
             # Pass separator
             fastq.next()
             # Pass quality
@@ -198,8 +208,11 @@ def parse_fasta(fasta_file, tag=None):
 def get_size_info(seq_len_tab):
     """Get number, mean length and median_length
     """
-    return [len(seq_len_tab), sum(seq_len_tab)/len(seq_len_tab),
+    res = [0] * 3
+    if len(seq_len_tab) > 0:
+        res = [len(seq_len_tab), sum(seq_len_tab)/len(seq_len_tab),
             sorted(seq_len_tab)[len(seq_len_tab)//2]]
+    return res
 
 
 def get_reads_data(sample_data, list_reads, tag):
@@ -272,9 +285,11 @@ def get_blast(blast_file):
 
 
 def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
-                  identity_threshold, coverage_threshold, type_seq):
+                  identity_threshold, coverage_threshold, type_seq,
+                  serotype_association_dict):
     """Associate vp1 contigs and their annotation
     """
+    annotation_list = []
     for sample in blast_vp1_file:
         # Get sample name
         name,ext = os.path.splitext(os.path.basename(sample))
@@ -282,24 +297,28 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
             name = os.path.splitext(name)[0]
         name = name.replace("_vp1","")
         name = name.replace("_p1","")
-        print(name)
         # Get target length
         vp1_dict = get_blast(sample)
         for vp1 in vp1_dict:
-            if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
-                round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
-                # Gives id and coverage against vp1 db
-                #print(vp1_dict)
-                #print(vp1_id_dict[vp1_dict[vp1][0]])
-                sample_data[name][tag][vp1] += (
-                    [vp1 + "_" + type_seq, vp1_dict[vp1][0]] + [vp1_id_dict[vp1_dict[vp1][0]][0]] + 
-                    [vp1_dict[vp1][1]] +
-                    [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)])
-            elif tag in sample_data[name]:
+            if tag in sample_data[name]:
                 if vp1 in sample_data[name][tag]:
-                    sample_data[name][tag][vp1] += [""] * 5
+                    if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
+                        round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
+                        # Gives id and coverage against vp1 db
+                        print(vp1_dict)
+                        print(vp1_id_dict[vp1_dict[vp1][0]])
+                        sample_data[name][tag][vp1] += (
+                            [vp1 + "_" + type_seq, vp1_dict[vp1][0], 
+                             vp1_id_dict[vp1_dict[vp1][0]][0], vp1_dict[vp1][1], 
+                             serotype_association_dict[vp1_id_dict[vp1_dict[vp1][0]][0]], 
+                             round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)])
+                        annotation_list += [[vp1 + "_" + type_seq, 
+                                             vp1_id_dict[vp1_dict[vp1][0]][0],
+                                             serotype_association_dict[vp1_id_dict[vp1_dict[vp1][0]][0]]]]
+                    else:
+                        sample_data[name][tag][vp1] += [""] * 6
 
-    return sample_data
+    return sample_data, annotation_list
 
 def load_vp1_annotation(vp1_annotation_file, sample_data):
     """Load the taxonomical annotation
@@ -348,6 +367,37 @@ def get_abundance(sample_data, count_matrix_file):
         sys.exit("Error cannot open {0}".format(count_matrix_file))
     return sample_data
 
+def get_association(association_file):
+    """
+    """
+    association_dict = {}
+    try:
+        with open(association_file, "rt") as association:
+            association_reader = csv.reader(association, delimiter="\t")
+            # Pass header
+            association_reader.next()
+            for line in association_reader:
+                association_dict[line[1]] = line[0]
+            assert(len(association_dict) > 0)
+    except IOError:
+        sys.exit("Error cannot open {0}".format(association_file))
+    except AssertionError:
+        sys.exit("Nothing read from {0}".format(association_file))
+    return association_dict
+
+
+def write_annotation(output_file, annotation_list):
+    """
+    """
+    try:
+        with open(output_file, "wt") as output:
+            output_writer = csv.writer(output, delimiter="\t")
+            output_writer.writerow(["Contig", "Serotype", "Species"])
+            for annot in annotation_list:
+                output_writer.writerow(annot)
+    except IOError:
+        sys.exit("Error cannot open {0}".format(output_file))
+
 
 def write_result(sample_data, output_file, annotated, count_matrix_file,
                  raw_treatment):
@@ -359,8 +409,8 @@ def write_result(sample_data, output_file, annotated, count_matrix_file,
     main_info = ["Processed_read_fwd", "Mean_length_proc_fwd",
                  "Processed_read_rev", "Mean_length_proc_rev", "Number_contigs",
                  "Number_of_contigs_with_VP1", "Contigs_with_VP1", "Length_contigs_with_VP1",
-                 "VP1_sequences", "Matched_VP1", "Annotation_VP1", "Identity_VP1",
-                 "Coverage_VP1", "P1_sequences", "Matched_P1", "Annotation_P1", "Identity_P1",
+                 "VP1_sequences", "Matched_VP1", "Serotype_VP1", "Specie_VP1", "Identity_VP1",
+                 "Coverage_VP1", "P1_sequences", "Matched_P1", "Serotype_P1", "Specie_P1", "Identity_P1",
                  "Coverage_P1", "Map_NCBI", "Annotation_NCBI", "Identity_NCBI",
                  "Coverage_NCBI"]
     if raw_treatment:
@@ -447,12 +497,47 @@ def write_result(sample_data, output_file, annotated, count_matrix_file,
         sys.exit("Error cannot open {0}".format(output_file))
 
 
+def write_occurence_matrix(sample_data, output_occurence_file):
+    """
+    """
+    sample_list = [sample for sample in sample_data if len(sample_data[sample]["vp1_contigs"]) > 0]
+    len_sample_list = len(sample_list)
+    try:
+        with open(output_occurence_file, "wt") as output_occurence:
+            output_writer = csv.writer(output_occurence, delimiter="\t")
+            output_writer.writerow(["contigs"] + sample_list)
+            for sample in sample_list:
+                for vp1 in sample_data[sample]["vp1_contigs"]:
+                    sample_num = sample_list.index(sample)
+                    output_writer.writerow([vp1] + [0]*sample_num + [1] + [0] * (len_sample_list - sample_num - 1))
+    except IOError:
+        sys.exit("Error cannot open {0}".format(output_occurence_file))
+
+
+def write_annotation_matrix(sample_data, output_annotation_file,
+                            serotype_association_dict):
+    """
+    """
+    sample_list = [sample for sample in sample_data if len(sample_data[sample]["vp1_contigs"]) > 0]
+    try:
+        with open(output_annotation_file, "wt") as output_annotation:
+            output_writer = csv.writer(output_annotation, delimiter="\t")
+            output_writer.writerow(["contigs", "serotype", "specie"] )
+            for sample in sample_list:
+                for vp1 in sample_data[sample]["vp1_contigs"]:
+                    output_writer.writerow(
+                        [vp1, sample_data[sample]["vp1_contigs"][vp1][3],
+                        serotype_association_dict[sample_data[sample]["vp1_contigs"][vp1][3]]])
+    except IOError:
+        sys.exit("Error cannot open {0}".format(output_annotation_file))
+
 def main():
     """Main program
     """
     args = get_arguments()
     sample_data = {}
     raw_treatment = False
+    serotype_association_dict = get_association(args.serotype_association_file)
     # Get raw data
     if args.raw_reads_r1 and args.raw_reads_r2:
         print("Raw reads")
@@ -461,7 +546,7 @@ def main():
         sample_data = get_reads_data(sample_data, reads_file, "raw")
         raw_treatment = True
     # Get cleaned data
-    processed_reads_dir = args.data_dir + os.sep + "cleaned_reads" + os.sep
+    #processed_reads_dir = args.data_dir + os.sep + "cleaned_reads" + os.sep
     if args.processed_reads_r1 and args.processed_reads_r2:
         print("Clean reads")
         list_r1 = args.processed_reads_r1
@@ -470,7 +555,7 @@ def main():
 
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check contigs
-    contigs_dir = args.data_dir + os.sep + "assembly" + os.sep
+    #contigs_dir = args.data_dir + os.sep + "assembly" + os.sep
     if args.contigs:
         print("Contigs")
         contigs_file = args.contigs
@@ -481,13 +566,13 @@ def main():
     #if os.path.isdir(vp1_contigs_dir):
     if args.vp1_contigs:
         print("vp1_contigs")
-        print(sample_data["EVB-2_S265"])
+        #print(sample_data["EVB-2_S265"])
         vp1_contigs_file = args.vp1_contigs
         #print(vp1_contigs_file)
         sample_data = get_fasta_data(sample_data, vp1_contigs_file,
                                      "vp1_contigs")
-        print("after")
-        print(sample_data["EVB-2_S265"])
+        #print("after")
+        #print(sample_data["EVB-2_S265"])
     
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check annotation
@@ -497,44 +582,52 @@ def main():
         vp1_id_dict = load_id(args.vp1_id_file)
         blast_vp1_file = args.blast_vp1
         #print(blast_vp1_file)
-        print(sample_data["EVB-2_S265"])
-        sample_data = associate_vp1(sample_data, blast_vp1_file,
+        #print(sample_data["EVB-2_S265"])
+        sample_data, vp1_annotation_list = associate_vp1(sample_data, blast_vp1_file,
                                     vp1_id_dict, "vp1_contigs",
                                     args.identity_threshold,
                                     args.coverage_threshold,
-                                    "vp1")
-        print("after")
-        print(sample_data["EVB-2_S265"])
+                                    "vp1", serotype_association_dict)
+        # print("after")
+        # print(sample_data["EVB-2_S265"])
     if args.blast_p1 and args.p1_id_file:
         print("P1 Annotation")
         p1_id_dict = load_id(args.p1_id_file)
         blast_p1_file = args.blast_p1
         #print(blast_vp1_file)
-        print(sample_data["EVB-2_S265"])
-        sample_data = associate_vp1(sample_data, blast_p1_file,
+        # print(sample_data["EVB-2_S265"])
+        sample_data, p1_annotation_list = associate_vp1(sample_data, blast_p1_file,
                                    p1_id_dict, "vp1_contigs",
                                    args.identity_threshold,
                                    args.coverage_threshold,
-                                   "p1")
-        print(sample_data["EVB-2_S265"])
+                                   "p1", serotype_association_dict)
+        #print(sample_data["EVB-2_S265"])
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Load vp1 annotation
     if args.vp1_annotation_file:
-        print("avant")
-        print(sample_data["EVB-2_S265"])
+        # print("avant")
+        # print(sample_data["EVB-2_S265"])
         sample_data = load_vp1_annotation(args.vp1_annotation_file, sample_data)
-        print("apres")
-        print(sample_data["EVB-2_S265"])
+        # print("apres")
+        # print(sample_data["EVB-2_S265"])
     print("vp1_contigs abundance")
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Load vp1 abundance
     if args.count_matrix_file:
         sample_data = get_abundance(sample_data, args.count_matrix_file)
+    if args.output_serotype_file:
+        write_annotation(args.output_serotype_file, p1_annotation_list)
     print("Final")
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Write result
     write_result(sample_data, args.output_file, args.annotated,
                  args.count_matrix_file, raw_treatment)
+    if args.output_occurence_file:
+        write_occurence_matrix(sample_data, args.output_occurence_file)
+    if args.output_annotation_file:
+        write_annotation_matrix(sample_data, args.output_annotation_file,
+                                serotype_association_dict)
+
 
 
 if __name__ == "__main__":

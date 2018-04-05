@@ -45,7 +45,6 @@ params.in="$baseDir/test/"
 readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}.{fastq,fastq.dsrc2,fastq.gz}")
                     .ifEmpty { exit 1, "Cannot find any reads matching: ${params.in}" }
                     //.subscribe { println it }
-
 /*contigsChannel = Channel
                 .fromPath("${params.in}/*.fasta")
                 .map {file -> tuple(file.baseName.replaceAll(".fasta",""),file)}*/
@@ -81,6 +80,9 @@ params.abundance = "no"
 params.evalue = 1E-3
 params.ent_serotype = "$baseDir/databases/enterovirus_species_type-2018-04.csv"
 params.conserved_position = 0.8
+params.root_seq_full = "$baseDir/databases/RV-A1B-B632-D00239.fa"
+params.root_seq_p1 = "$baseDir/databases/RV-A1B-B632-D00239-P1.fa"
+params.root_seq_vp1 = "$baseDir/databases/RV-A1B-B632-D00239-VP1.fa"
 inDir = file(params.in)
 
 myDir = file(params.out)
@@ -106,33 +108,36 @@ process filtering {
 
     output:
     set pair_id, file("unmapped/*.1"), file("unmapped/*.2") into unmappedChannel
+    file("raw/*_R1.fastq") into r1Channelresume
+    file("raw/*_R2.fastq") into r2Channelresume
     //set pair_id, file("unmapped/*.1"), file("unmapped/*.2") into redundantChannel
 
     shell:
     """
     #!/usr/bin/env bash
+    mkdir raw
     case "!{reads[0]}" in
     *.dsrc2 )
-        dsrc d -t!{params.cpus} !{reads[0]} file_R1.fastq
-        dsrc d -t!{params.cpus} !{reads[1]} file_R2.fastq
+        dsrc d -t!{params.cpus} !{reads[0]} raw/${pair_id}_R1.fastq
+        dsrc d -t!{params.cpus} !{reads[1]} raw/${pair_id}_R2.fastq
     ;;
     *.gz )
-        gunzip !{reads[0]} -c > file_R1.fastq
-        gunzip !{reads[1]} -c > file_R2.fastq
+        gunzip !{reads[0]} -c > raw/${pair_id}_R1.fastq
+        gunzip !{reads[1]} -c > raw/${pair_id}_R2.fastq
     ;;
     *)
-        ln -s !{reads[0]} file_R1.fastq
-        ln -s !{reads[1]} file_R2.fastq
+        ln -s !{reads[0]} raw/${pair_id}_R1.fastq
+        ln -s !{reads[1]} raw/${pair_id}_R2.fastq
     ;;
     esac
     mkdir unmapped
     if [ !{params.focus} ==  "no" ]
     then
-        bowtie2 -q -N !{params.mismatch} -1 file_R1.fastq -2 file_R2.fastq \
+        bowtie2 -q -N !{params.mismatch} -1 raw/${pair_id}_R1.fastq -2 raw/${pair_id}_R2.fastq \
                 -x !{params.contaminant} --un-conc unmapped/ -S /dev/null \
                 -p !{params.cpus} --very-sensitive-local
     else
-        bowtie2 -q -N !{params.mismatch} -1 file_R1.fastq -2 file_R2.fastq \
+        bowtie2 -q -N !{params.mismatch} -1 raw/${pair_id}_R1.fastq -2 raw/${pair_id}_R2.fastq \
                 -x !{params.viral} --al-conc unmapped/ -S /dev/null \
                 -p !{params.cpus} --very-sensitive-local
     fi
@@ -180,6 +185,8 @@ process khmer {
     output:
     set pair_id, file("khmer/*_R1.fastq"), file("khmer/*_R2.fastq") into khmerChannel
     file("khmer/*.fastq.gz") into khmeroutChannel mode flatten
+    file("khmer/*_R1.fastq.gz") into procr1Channelresume
+    file("khmer/*_R2.fastq.gz") into procr2Channelresume
 
     shell:
     """
@@ -236,6 +243,8 @@ process assembly {
 
     output:
     set pair_id, file("assembly/*_{clc,megahit,metacompass,ray,spades}.fasta") into contigsChannel
+    file("assembly/*_{clc,megahit,metacompass,ray,spades}.fasta") into contigsChannelresume
+    file("assembly/*_{clc,megahit,metacompass,ray,spades}.fasta") into contigsChannelresumeabund
 
     shell:
     """
@@ -295,6 +304,8 @@ process blast {
     //file("log.txt") into logChannel
     set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel
     set contigsID, file(contigs), file("blast/*_p1.tsv") into p1blastChannel
+    file("blast/*_vp1.tsv") into vp1blastChannelresume
+    file("blast/*_p1.tsv") into p1blastChannelresume   
     set contigsID, file("blast/*_nt.tsv") into blastChannel
     file("blast/*.tsv") into allblastChannel mode flatten
 
@@ -358,6 +369,7 @@ process vp1 {
     output:
     file("vp1/*_vp1.fasta") into vp1Channel
     file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannel
+    file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannelresume
 
     shell:
     """
@@ -566,54 +578,69 @@ process combine_annotation {
 //vp1contigs_annotation = vp1finalChannel.collectFile(name: 'vp1contigs_annotation.tsv')
 //file("vp1contigs_annotation.tsv") into vp1finalChannelabundance
 //p1contigs_annotation.subscribe { it.copyTo(myDir) }
+if ( params.abundance == "no") {
+    process summary {
+        publishDir "$myDir", mode: 'copy'
 
-process summary {
-    publishDir "$myDir", mode: 'copy'
+        input:
+        file(rawr1) from r1Channelresume.toList()
+        file(rawr2) from r2Channelresume.toList()
+        file(procr1) from procr1Channelresume.toList()
+        file(procr2) from procr2Channelresume.toList()
+        file(contigs) from contigsChannelresume.toList()
+        file(vp1contigs) from vp1contigsChannelresume.toList()
+        file(vp1blast) from vp1blastChannelresume.toList()
+        file(p1blast) from p1blastChannelresume.toList()
+        file(vp1contigs_annot) from vp1finalChannel
 
-    input:
-    file(vp1contigs_annot) from vp1finalChannel
-    file myDir
-    file inDir
+        output:
+        file("result_summary.tsv") into resultChannel
+        file("occurence/*.tsv") into annotabundChannel mode flatten
+        //file(vp1contigs_annot) into overChannel
 
-    when:
-    params.abundance == "no"
-
-    output:
-    file("result_summary.tsv") into resultChannel
-    //file(vp1contigs_annot) into overChannel
-
-    script:
-    """
-    extract_result.py -i $myDir -a ${params.vp1info}\
-           -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
-           -l ${params.annotated} -v ${params.vp1coverage}\
-           -p ${params.p1info}
-    """
+        shell:
+        """
+        mkdir occurence
+        extract_result2.py -r1 !{rawr1} -r2 !{rawr2} -pr1 !{procr1} -pr2 !{procr2} -a !{params.vp1info}\
+               -vp1 !{vp1contigs_annot} -o result_summary.tsv \
+               -l !{params.annotated} -v !{params.vp1coverage}\
+               -p !{params.p1info} -c !{contigs} -vp1c !{vp1contigs} -bvp1 !{vp1blast} -bp1 !{p1blast}\
+               -s !{params.ent_serotype} -oc occurence/count.tsv -oa occurence/annotation.tsv
+        """
+    }
 }
+else{
+    process summary_abundance {
+        publishDir "$myDir", mode: 'copy'
 
-process summary_abundance {
-    publishDir "$myDir", mode: 'copy'
+        input:
+        file(rawr1) from r1Channelresume.toList()
+        file(rawr2) from r2Channelresume.toList()
+        file(procr1) from procr1Channelresume.toList()
+        file(procr2) from procr2Channelresume.toList()
+        file(contigs) from contigsChannelresume.toList()
+        file(vp1contigs) from vp1contigsChannelresume.toList()
+        file(vp1blast) from vp1blastChannelresume.toList()
+        file(p1blast) from p1blastChannelresume.toList()
+        file(vp1contigs_annot) from vp1finalChannel
+        file countChannel
 
-    input:
-    file(vp1contigs_annot) from vp1finalChannelabundance
-    file myDir
-    file inDir
-    file countChannel
+        output:
+        file("result_summary.tsv") into resultChannel
+        file("abundance/annotation.tsv") into annotabundChannel
+        file("occurence/*.tsv") into occurenceChannel mode flatten
+        //file(vp1contigs_annot) into overChannel
 
-    when:
-    params.abundance == "yes"
-
-    output:
-    file("result_summary.tsv") into resultChannelabundance
-    //file(vp1contigs_annot) into overChannel
-
-    script:
-    """
-    extract_result.py -i $myDir -a ${params.vp1info}\
-        -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
-        -c ${countChannel} -l ${params.annotated} -v ${params.vp1coverage}\
-        -p ${params.p1info}
-    """
+        shell:
+        """
+        mkdir abundance occurence
+        extract_result2.py -r1 !{rawr1} -r2 !{rawr2} -pr1 !{procr1} -pr2 !{procr2} -a !{params.vp1info}\
+            -vp1 !{vp1contigs_annot} -o result_summary.tsv \
+            -n !{countChannel} -l !{params.annotated} -v !{params.vp1coverage}\
+            -p !{params.p1info} -c !{contigs} -vp1c !{vp1contigs} -bvp1 !{vp1blast} -bp1 !{p1blast}\
+            -s !{params.ent_serotype} -os abundance/annotation.tsv -oc occurence/count.tsv -oa occurence/annotation.tsv
+        """
+    }
 }
 
 //resultChannel.subscribe { it.copyTo(myDir) }
@@ -632,13 +659,17 @@ process extract_per_serotype {
 
     output:
     //set "!{fasta.baseName}", file("*.fasta") into fastaserotype
-    file("*.fasta") into fastaserotype mode flatten
+    file("by_serotype/*.fasta") into fastaserotype mode flatten
 
-    script:
+    shell:
     """
-    extract_seq_per_serotype.py -i ${result_summary} -a ${params.ent_serotype} -f ${vp1contigsfasta} -r ./ -t "Contigs_with_VP1"
-    extract_seq_per_serotype.py -i ${result_summary} -a ${params.ent_serotype} -f ${p1fasta} -r ./ -t "P1_sequences"
-    extract_seq_per_serotype.py -i ${result_summary} -a ${params.ent_serotype} -f ${vp1fasta} -r ./ -t "VP1_sequences"
+    mkdir by_serotype
+    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1contigsfasta} -o by_serotype/ -t "Contigs_with_VP1"
+    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{p1fasta} -o by_serotype/ -t "P1_sequences"
+    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1fasta} -o by_serotype/ -t "VP1_sequences"
+    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1contigsfasta} -o by_serotype/ -t "Contigs_with_VP1" -r !{params.root_seq_full}
+    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{p1fasta} -o by_serotype/ -t "P1_sequences" -r !{params.root_seq_p1}
+    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1fasta} -o by_serotype/ -t "VP1_sequences" -r !{params.root_seq_vp1}
     """
 }
 
@@ -670,12 +701,12 @@ process filtering_alignment {
 
     output:
     //set fastaID, file("*_bmge.ali") into msafiltserotype
-    file("*_bmge.ali") into msafiltserotype mode flatten
+    file("msa/*_bmge.ali") into msafiltserotype mode flatten
 
     shell:
     """
     mkdir msa
-    BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
+    BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge.ali
     """
 
 }
@@ -689,11 +720,13 @@ process phylogeny {
     file(msafilt) from msafiltserotype
 
     output:
-    file("*.phy") into phylogenyserotype mode flatten
+    file("phylogeny/*.treefile") into phylogenyserotype mode flatten
 
     shell:
     """
-    iqtree -m GTR+I+G4  -nt !{params.cpus} -s !{msafilt}
+    mkdir phylogeny
+    iqtree -m GTR+I+G4  -s !{msafilt}
+    mv *.treefile phylogeny/
     """
 }
 

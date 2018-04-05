@@ -67,6 +67,8 @@ def get_arguments():
                         help="Coverage threshold (default >=0.0)")
     parser.add_argument('-o', dest='output_file', type=str, required=True,
                         help='Output file')
+    parser.add_argument('-t', dest='tag', type=str, required=True,
+                        choices=["vp1", "p1"], help='Tag (vp1 or p1)')
     return parser.parse_args()
 
 
@@ -175,7 +177,7 @@ def rev_comp(dna, complement):
     """
     return ''.join([complement[base] for base in dna[::-1]])
 
-def extract_sequence(position_dict, contigs_file, output_file, identity):
+def extract_sequence(position_dict, contigs_file, output_file, identity, tag):
     """
     """
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
@@ -193,14 +195,14 @@ def extract_sequence(position_dict, contigs_file, output_file, identity):
                                 complement)
                     else:
                         contig_seq = contig[position_dict[contigid]["position"][0]:position_dict[contigid]["position"][1]]
-                    output.write(">{1}_vp1 match:{2} identity:{3}% "
+                    output.write(">{1}_{7} match:{2} identity:{3}% "
                                  "coverage:{4}% evalue:{5}{0}{6}{0}".format(
                         os.linesep, idname + contigid,
                         position_dict[contigid]["target"],
                         position_dict[contigid]["identity"],
                         position_dict[contigid]["coverage"],
                         position_dict[contigid]["evalue"],
-                        fill(contig_seq)))
+                        fill(contig_seq), tag))
     except IOError:
         sys.exit("Error cannot open {0}".format(output_file))
 
@@ -224,7 +226,7 @@ def main():
     # Extract sequence
     if len(position_dict) > 0:
         extract_sequence(position_dict, args.contigs_file, args.output_file,
-                        args.identity)
+                         args.identity, args.tag)
     else:
         open(args.output_file, 'w').close()
 

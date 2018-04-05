@@ -31,7 +31,7 @@ workflow.onError = {
 params.help=false
 
 def usage() {
-    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,megahit,metacompass,ray,spades> -w <temp_work_dir> --annotated <yes,no> --focus <yes,no>")
+    println("entvirus --in <reads_dir> --out <output_dir> --cpus <nb_cpus> --mode <clc,megahit,metacompass,ray,spades> -w <temp_work_dir> --annotated <yes,no> --focus <yes,no> --abundance <yes,no>")
 }
 
 
@@ -79,6 +79,8 @@ params.vp1coverage = 50
 params.p1coverage = 50
 params.abundance = "no"
 params.evalue = 1E-3
+params.ent_serotype = "$baseDir/databases/enterovirus_species_type-2018-04.csv"
+params.conserved_position = 0.8
 inDir = file(params.in)
 
 myDir = file(params.out)
@@ -335,7 +337,7 @@ process p1 {
        # Extract VP1 sequence
        extract_sequence.py -q !{contigs} -b !{p1blast} \
             -o p1/!{contigsID}_p1.fasta -a !{params.p1info} \
-            -c !{params.p1coverage}
+            -c !{params.p1coverage} -t p1
     else
         touch p1/!{contigsID}_p1.fasta
    fi
@@ -343,7 +345,8 @@ process p1 {
 }
 
 p1Channel.collectFile(name: 'p1sequences.fasta')
-         .subscribe { it.copyTo(myDir) }
+         .into{ p1mbma ; p1tosave ; p1fasta }
+p1tosave.subscribe { it.copyTo(myDir) }
 
 // Extract vp1 sequences
 process vp1 {
@@ -366,7 +369,7 @@ process vp1 {
         # Extract VP1 sequence
         extract_sequence.py -q !{contigs} -b !{vp1blast} \
                -o vp1/!{contigsID}_vp1.fasta -a !{params.vp1info} \
-               -c !{params.vp1coverage}
+               -c !{params.vp1coverage} -t vp1
         # Extract VP1 contig
         grab_catalogue_sequence.py -i !{vp1blast} \
                -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs.fasta \
@@ -376,6 +379,10 @@ process vp1 {
     fi
     """
 }
+
+vp1Channel.collectFile(name: 'vp1sequences.fasta')
+          .into { vp1tosave ; vp1fasta}
+vp1tosave.subscribe { it.copyTo(myDir) }
 
 /*process vp1_vsearch {
     publishDir "$myDir", mode: 'copy'
@@ -445,7 +452,7 @@ process annotation {
 combineChannel = annotationChannel.collectFile(name: 'combined.tsv')
 //vp1contigs_vsearch = vp1contigsvChannel.collectFile(name: 'vp1contigs_vsearch.fasta')
 vp1contigs = vp1contigsChannel.collectFile(name: 'vp1contigs.fasta')
-vp1contigs.into { vp1contigs_mbma; vp1contigs_summary }
+//vp1contigs.into { vp1contigs_mbma; vp1contigs_s }
 //vp1annotation = vp1blasttocombineChannel.collectFile(name: 'vp1blast.tsv')
 
 process buildIndex {
@@ -454,10 +461,10 @@ process buildIndex {
     //clusterOptions='--qos=normal -p common'
 
     input:
-    file vp1contigs_mbma
+    file p1mbma
 
     output:
-    file("vp1contigs.index*") into vp1contigs_index
+    file("p1mbma.index*") into p1mbma_index
     //file(vp1contigs) into vp1contigs_fasta
 
     when:
@@ -465,7 +472,7 @@ process buildIndex {
 
     script:
     """
-    bowtie2-build --threads ${params.cpus} ${vp1contigs} vp1contigs.index
+    bowtie2-build --threads ${params.cpus} ${p1mbma} p1mbma.index
     """
 }
 
@@ -476,7 +483,7 @@ process abundance_vp1 {
     //errorStrategy 'finish'
 
     input:
-    file(vp1contigs) from vp1contigs_index.first()
+    file(p1mbma) from p1mbma_index.first()
     file(forward) from r1Channel.toList()
     file(reverse) from r2Channel.toList()
     //file cleanDir
@@ -490,7 +497,7 @@ process abundance_vp1 {
     shell:
     """
     mbma.py mapping --r1 !{forward} --r2 !{reverse} -o abundance \
-           -db vp1contigs.index -e !{params.mail} -q !{params.queue} \
+           -db p1mbma.index -e !{params.mail} -q !{params.queue} \
            -p !{params.partition} --bowtie2 \
            --shared -m PE -t !{params.cpus}
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
@@ -513,10 +520,10 @@ process combine_annotation {
 
     input:
     file(ncbi_annotation) from combineChannel
-    file(vp1contigs_fasta) from vp1contigs_summary
+    file(vp1contigs_fasta) from vp1contigs
 
     output:
-    file("contigs_annotation.tsv") into finalChannel mode flatten
+    file("contigs_annotation.tsv") into finalChannel
     file("vp1contigs_annotation.tsv") into vp1finalChannel
     file("vp1contigs_annotation.tsv") into vp1finalChannelabundance
     file(vp1contigs_fasta) into vp1contigsfasta
@@ -557,15 +564,19 @@ process combine_annotation {
 //contigs_annotation = finalChannel.collectFile(name: 'contigs_annotation.tsv')
 //contigs_annotation.subscribe { it.copyTo(myDir) }
 //vp1contigs_annotation = vp1finalChannel.collectFile(name: 'vp1contigs_annotation.tsv')
-//vp1contigs_annotation.subscribe { it.copyTo(myDir) }
+//file("vp1contigs_annotation.tsv") into vp1finalChannelabundance
+//p1contigs_annotation.subscribe { it.copyTo(myDir) }
 
 process summary {
-    //publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir", mode: 'copy'
 
     input:
     file(vp1contigs_annot) from vp1finalChannel
     file myDir
     file inDir
+
+    when:
+    params.abundance == "no"
 
     output:
     file("result_summary.tsv") into resultChannel
@@ -575,18 +586,22 @@ process summary {
     """
     extract_result.py -i $myDir -a ${params.vp1info}\
            -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
-           -l ${params.annotated} -v ${params.vp1coverage}
+           -l ${params.annotated} -v ${params.vp1coverage}\
+           -p ${params.p1info}
     """
 }
 
 process summary_abundance {
-    //publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir", mode: 'copy'
 
     input:
     file(vp1contigs_annot) from vp1finalChannelabundance
     file myDir
     file inDir
     file countChannel
+
+    when:
+    params.abundance == "yes"
 
     output:
     file("result_summary.tsv") into resultChannelabundance
@@ -596,12 +611,91 @@ process summary_abundance {
     """
     extract_result.py -i $myDir -a ${params.vp1info}\
         -vp1 ${vp1contigs_annot} -o result_summary.tsv -r $inDir\
-        -c ${countChannel} -l ${params.annotated} -v ${params.vp1coverage}
+        -c ${countChannel} -l ${params.annotated} -v ${params.vp1coverage}\
+        -p ${params.p1info}
     """
 }
 
-resultChannel.subscribe { it.copyTo(myDir) }
-resultChannelabundance.subscribe { it.copyTo(myDir) }
+//resultChannel.subscribe { it.copyTo(myDir) }
+//resultChannelabundance.subscribe { it.copyTo(myDir) }
+//fastachan = Channel.from(["Contigs_with_VP1", ${vp1contigsfasta}], ["P1_sequences", ${p1fasta}], ["VP1_sequences", ${vp1fasta}])
+
+process extract_per_serotype {
+    publishDir "$myDir", mode: 'copy'
+
+    input:
+    file(result_summary) from resultChannel
+    file vp1contigsfasta
+    file p1fasta
+    file vp1fasta
+    //set key, fasta from fastachan
+
+    output:
+    //set "!{fasta.baseName}", file("*.fasta") into fastaserotype
+    file("*.fasta") into fastaserotype mode flatten
+
+    script:
+    """
+    extract_seq_per_serotype.py -i ${result_summary} -a ${params.ent_serotype} -f ${vp1contigsfasta} -r ./ -t "Contigs_with_VP1"
+    extract_seq_per_serotype.py -i ${result_summary} -a ${params.ent_serotype} -f ${p1fasta} -r ./ -t "P1_sequences"
+    extract_seq_per_serotype.py -i ${result_summary} -a ${params.ent_serotype} -f ${vp1fasta} -r ./ -t "VP1_sequences"
+    """
+}
+
+process multiple_alignment {
+    publishDir "$myDir", mode: 'copy'
+    cpus params.cpus
+
+    input:
+    //set fastaID, file(fasta) from fastaserotype
+    file(fasta) from fastaserotype
+
+    output:
+    //set fastaID, file("msa/*.ali") into msaserotype
+    file("msa/*.ali") into msaserotype mode flatten
+
+    shell:
+    """
+    mkdir msa
+    mafft --thread !{params.cpus} --maxiterate 1000 --globalpair !{fasta} > msa/!{fasta.baseName}.ali
+    """
+
+}
+
+process filtering_alignment {
+    publishDir "$myDir", mode: 'copy'
+    input:
+    //set fastaID, file(msa) from msaserotype
+    file(msa) from msaserotype
+
+    output:
+    //set fastaID, file("*_bmge.ali") into msafiltserotype
+    file("*_bmge.ali") into msafiltserotype mode flatten
+
+    shell:
+    """
+    mkdir msa
+    BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
+    """
+
+}
+
+process phylogeny {
+    publishDir "$myDir", mode: 'copy'
+    cpus params.cpus
+
+    input:
+    //set fastaID, file(msafilt) from msafiltserotype
+    file(msafilt) from msafiltserotype
+
+    output:
+    file("*.phy") into phylogenyserotype mode flatten
+
+    shell:
+    """
+    iqtree -m GTR+I+G4  -nt !{params.cpus} -s !{msafilt}
+    """
+}
 
 println "Project : $workflow.projectDir"
 //println "Git info: $workflow.repository - $workflow.revision [$workflow.commitId]"

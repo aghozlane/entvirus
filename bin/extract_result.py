@@ -74,6 +74,8 @@ def get_arguments():
                         help='Raw reads directory.')
     parser.add_argument('-a', dest='vp1_id_file', type=isfile, default=None,
                         help='VP1 database annotation')
+    parser.add_argument('-p', dest='p1_id_file', type=isfile, default=None,
+                        help='P1 database annotation')
     parser.add_argument('-vp1', dest='vp1_annotation_file', type=isfile,
                         default=None, help='VP1 annotation')
     parser.add_argument('-c', dest='count_matrix_file', type=isfile,
@@ -167,10 +169,10 @@ def parse_fasta(fasta_file, tag=None):
                     sequence += line.replace("\n", "").replace("\r", "")
             len_seq = len(sequence)
             if len_seq > 0:
-                if tag == 'vp1_contigs':
-                    seq_info[header] = [len_seq, sequence]
-                else:
-                    seq_info[header] = [len_seq]
+                #if tag == 'vp1_contigs':
+                #    seq_info[header] = [len_seq, sequence]
+                #else:
+                seq_info[header] = [len_seq]
                 seq_len_tab.append(len_seq)
             #else:
             #     print("WTF: {0}".format(fasta_file))
@@ -226,37 +228,37 @@ def get_fasta_data(sample_data, list_file, tag):
     return sample_data
 
 
-def load_vp1_id(vp1_id_file):
-    """Load vp1 id file
+def load_id(id_file):
+    """Load id file
     """
-    vp1_id_dict = {}
+    id_dict = {}
     try:
-        with open(vp1_id_file, "rt") as vp1_id:
-            vp1_id_reader = csv.reader(vp1_id, delimiter="\t")
-            for line in vp1_id_reader:
-                vp1_id_dict[line[0]] = line[1:3]
+        with open(id_file, "rt") as id:
+            id_reader = csv.reader(id, delimiter="\t")
+            for line in id_reader:
+                id_dict[line[0]] = line[1:3]
     except IOError:
-        sys.exit("Error cannot open {0}".format(vp1_id_file))
-    return vp1_id_dict
+        sys.exit("Error cannot open {0}".format(id_file))
+    return id_dict
 
 
-def get_vp1(blast_vp1_file):
-    """Get vp1 annotation
+def get_blast(blast_file):
+    """Get blast annotation
     """
-    vp1_dict = {}
+    blast_dict = {}
     try:
-        with open(blast_vp1_file, "rt") as blast_vp1:
-            blast_vp1_reader = csv.reader(blast_vp1, delimiter="\t")
-            for line in blast_vp1_reader:
-                vp1_dict[line[0]]= line[1:2] + [round(float(line[8]), 1),
+        with open(blast_file, "rt") as blast:
+            blast_reader = csv.reader(blast, delimiter="\t")
+            for line in blast_reader:
+                blast_dict[line[0]]= line[1:2] + [round(float(line[8]), 1),
                                              float(line[3])]
     except IOError:
-        sys.exit("Error cannot open {0}".format(blast_vp1_file))
-    return vp1_dict
+        sys.exit("Error cannot open {0}".format(blast_file))
+    return blast_dict
 
 
 def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
-                  identity_threshold, coverage_threshold):
+                  identity_threshold, coverage_threshold, type_seq):
     """Associate vp1 contigs and their annotation
     """
     for sample in blast_vp1_file:
@@ -265,29 +267,35 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
         if ext == ".gz":
             name = os.path.splitext(name)[0]
         name = name.replace("_vp1","")
+        name = name.replace("_p1","")
+        print(name)
         # Get target length
-        vp1_dict = get_vp1(sample)
+        vp1_dict = get_blast(sample)
         for vp1 in vp1_dict:
             if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
                 round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
                 # Gives id and coverage against vp1 db
-                sample_data[name][tag][vp1] += (vp1_dict[vp1][0:2] +
-                        [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)] +
-                        [vp1_id_dict[vp1_dict[vp1][0]][0]])
-            #elif tag in sample_data[name]:
-            #    print(sample_data[name][tag])
-            #    sample_data[name][tag].pop(vp1,None)
+                #print(vp1_dict)
+                #print(vp1_id_dict[vp1_dict[vp1][0]])
+                sample_data[name][tag][vp1] += (
+                    [vp1 + "_" + type_seq, vp1_dict[vp1][0]] + [vp1_id_dict[vp1_dict[vp1][0]][0]] + 
+                    [vp1_dict[vp1][1]] +
+                    [round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)])
+            elif tag in sample_data[name]:
+                if vp1 in sample_data[name][tag]:
+                    sample_data[name][tag][vp1] += [""] * 5
+
     return sample_data
 
 def load_vp1_annotation(vp1_annotation_file, sample_data):
-    """
+    """Load the taxonomical annotation
     """
     try:
         with open(vp1_annotation_file, "rt") as vp1_annotation:
             vp1_annotation_reader = csv.reader(vp1_annotation, delimiter="\t")
             for line in vp1_annotation_reader:
                 if line[0] in sample_data[line[0].split("|")[0]]["vp1_contigs"]:
-                    sample_data[line[0].split("|")[0]]["vp1_contigs"][line[0]] += [line[-4], line[-3], ",".join(line[2:-4])]
+                    sample_data[line[0].split("|")[0]]["vp1_contigs"][line[0]] += [line[1], ",".join(line[2:-4]), line[-4], line[-3]]
     except IOError:
         sys.exit("Error cannot open {0}".format(vp1_annotation_file))
     return sample_data
@@ -327,48 +335,32 @@ def get_abundance(sample_data, count_matrix_file):
     return sample_data
 
 
-def write_result(sample_data, output_file, annotated, count_matrix_file):
+def write_result(sample_data, output_file, annotated, count_matrix_file,
+                 raw_reads_dir):
     """
     """
     #id_tag = {"SEW":"Sewage", "SUP":"Supernatant", "CON":"Concentrate",
     #          "TOL":"Toliara", "MAH":"Mahajanga", "ANT":"Antananarivo"}
-    info = ["Complete"]
+    info = ["Sample"]
+    main_info = ["Processed_read_fwd", "Mean_length_proc_fwd",
+                 "Processed_read_rev", "Mean_length_proc_rev", "Number_contigs",
+                 "Number_of_contigs_with_VP1", "Contigs_with_VP1", "Length_contigs_with_VP1",
+                 "VP1_sequences", "Matched_VP1", "Annotation_VP1", "Identity_VP1",
+                 "Coverage_VP1", "P1_sequences", "Matched_P1", "Annotation_P1", "Identity_P1",
+                 "Coverage_P1", "Map_NCBI", "Annotation_NCBI", "Identity_NCBI",
+                 "Coverage_NCBI"]
+    if raw_reads_dir:
+        main_info = ["Raw_read_fwd", "Mean_length_raw_fwd", "Raw_read_rev",
+                     "Mean_length_raw_rev"] + main_info
     if annotated == "yes":
         info += ["ID1", "ID2", "ID3", "ID4"]
-
+    if count_matrix_file:
+        main_info += ["Raw abundance", "Relative abundance"]
+    
     try:
         with open(output_file, "wt") as output:
-            output_writer = csv.writer(output, delimiter="\t")
-            if count_matrix_file:
-                # output_writer.writerow(
-                #    info + ["Raw_read_fwd", "Mean_length_raw_fwd","Raw_read_rev",
-                #      "Mean_length_raw_rev", "Processed_read_fwd",
-                #      "Mean_length_proc_fwd", "Processed_read_rev",
-                #      "Mean_length_proc_rev", "Number_contigs",
-                #      "Number_VP1_contigs", "VP1_contigs", "Length_VP1_contigs",
-                #      "VP1_contigs_seq", "Map_VP1", "Annotation", "Identity",
-                #      "Coverage", "Map_NCBI", "Annotation_ncbi", "Identity",
-                #      "Coverage", "Raw abundance", "Relative abundance"])
-
-                output_writer.writerow(
-                   info + ["Raw_read_fwd", "Mean_length_raw_fwd","Raw_read_rev",
-                     "Mean_length_raw_rev", "Processed_read_fwd",
-                     "Mean_length_proc_fwd", "Processed_read_rev",
-                     "Mean_length_proc_rev", "Number_contigs",
-                     "Number_VP1_contigs", "VP1_contigs", "Length_VP1_contigs",
-                     "VP1_contigs_seq", "Map_VP1", "Identity", "Coverage",
-                     "Annotation",  "Identity", "Coverage", "Annotation_ncbi",
-                     "Raw abundance", "Relative abundance"])
-            else:
-                output_writer.writerow(
-                    info + ["Raw_read_fwd", "Mean_length_raw_fwd","Raw_read_rev",
-                     "Mean_length_raw_rev",
-                     "Processed_read_fwd", "Mean_length_proc_fwd",
-                     "Processed_read_rev", "Mean_length_proc_rev",
-                     "Number_contigs", "Number_VP1_contigs", "VP1_contigs",
-                     "Length_VP1_contigs", "VP1_contigs_seq", "Map_VP1",
-                     "Identity", "Coverage", "Annotation", "Identity",
-                     "Coverage","Annotation_ncbi"])
+            output_writer = csv.writer(output, delimiter="\t")            
+            output_writer.writerow(info + main_info)
             #print(sample_data.keys())
             for sample in sample_data:
                 if annotated == "yes":
@@ -406,8 +398,7 @@ def write_result(sample_data, output_file, annotated, count_matrix_file):
                             else:
                                 #print("nono: " + sample)
                                 output_writer.writerow(
-                                    tag + [0] *4 +
-                                    sample_data[sample]["proc_fwd"][0:2] +
+                                    tag + sample_data[sample]["proc_fwd"][0:2] +
                                     sample_data[sample]["proc_rev"][0:2] +
                                     [len(sample_data[sample]["assembly"]),
                                      len(sample_data[sample]["vp1_contigs"]),
@@ -423,7 +414,7 @@ def write_result(sample_data, output_file, annotated, count_matrix_file):
                                 [len(sample_data[sample]["assembly"]), 0])
                         else:
                             output_writer.writerow(
-                                tag + [0] *4 + sample_data[sample]["proc_fwd"][0:2] +
+                                tag + sample_data[sample]["proc_fwd"][0:2] +
                                 sample_data[sample]["proc_rev"][0:2] +
                                 [len(sample_data[sample]["assembly"]), 0])
                 else:
@@ -436,7 +427,7 @@ def write_result(sample_data, output_file, annotated, count_matrix_file):
                     else:
                         print("no assembly for sample {0}".format(sample))
                         output_writer.writerow(
-                                tag + [0] *4 + sample_data[sample]["proc_fwd"][0:2] +
+                                tag + sample_data[sample]["proc_fwd"][0:2] +
                                 sample_data[sample]["proc_rev"][0:2] + [0])
     except IOError:
         sys.exit("Error cannot open {0}".format(output_file))
@@ -449,51 +440,74 @@ def main():
     sample_data = {}
     # Get raw data
     if args.raw_reads_dir:
+        print("Raw reads")
         list_r1 = check_file(args.raw_reads_dir + os.sep + "*R1*.f*q*")
         reads_file = ([list_r1] + [[r.replace("R1", "R2") for r in list_r1]])
         sample_data = get_reads_data(sample_data, reads_file, "raw")
     # Get cleaned data
     processed_reads_dir = args.data_dir + os.sep + "cleaned_reads" + os.sep
     if os.path.isdir(processed_reads_dir):
+        print("Clean reads")
         list_r1 = check_file(processed_reads_dir + "*R1*.f*q*")
         cleaned_reads_file = ([list_r1] + [[r.replace("R1", "R2") for r in list_r1]])
         sample_data = get_reads_data(sample_data, cleaned_reads_file, "proc")
-    print("Cleaned")
+
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check contigs
     contigs_dir = args.data_dir + os.sep + "assembly" + os.sep
     if os.path.isdir(contigs_dir):
+        print("Contigs")
         contigs_file = check_file(contigs_dir + "*.fasta")
         sample_data = get_fasta_data(sample_data, contigs_file, "assembly")
-    print("Contigs")
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check vp1 contigs
     vp1_contigs_dir = args.data_dir + os.sep + "vp1_contigs" + os.sep
     if os.path.isdir(vp1_contigs_dir):
+        print("vp1_contigs")
+        print(sample_data["EVB-2_S265"])
         vp1_contigs_file = check_file(vp1_contigs_dir + "*.fasta")
         #print(vp1_contigs_file)
         sample_data = get_fasta_data(sample_data, vp1_contigs_file,
                                      "vp1_contigs")
-    print("vp1_contigs")
+        print("after")
+        print(sample_data["EVB-2_S265"])
+    
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check annotation
-    blast_vp1_dir = args.data_dir + os.sep + "blast" + os.sep
-    if os.path.isdir(blast_vp1_dir) and args.vp1_id_file:
-        vp1_id_dict = load_vp1_id(args.vp1_id_file)
-        blast_vp1_file = check_file(blast_vp1_dir + "*_vp1.tsv")
+    blast_dir = args.data_dir + os.sep + "blast" + os.sep
+    if os.path.isdir(blast_dir) and args.vp1_id_file:
+        print("VP1 Annotation")
+        vp1_id_dict = load_id(args.vp1_id_file)
+        blast_vp1_file = check_file(blast_dir + "*_vp1.tsv")
         #print(blast_vp1_file)
-        #print(sample_data)
+        print(sample_data["EVB-2_S265"])
         sample_data = associate_vp1(sample_data, blast_vp1_file,
                                     vp1_id_dict, "vp1_contigs",
                                     args.identity_threshold,
-                                    args.coverage_threshold)
-        #print("after")
-        #print(sample_data)
-    print("Annotation")
+                                    args.coverage_threshold,
+                                    "vp1")
+        print("after")
+        print(sample_data["EVB-2_S265"])
+    if os.path.isdir(blast_dir) and args.p1_id_file:
+        print("P1 Annotation")
+        p1_id_dict = load_id(args.p1_id_file)
+        blast_p1_file = check_file(blast_dir + "*_p1.tsv")
+        #print(blast_vp1_file)
+        print(sample_data["EVB-2_S265"])
+        sample_data = associate_vp1(sample_data, blast_p1_file,
+                                   p1_id_dict, "vp1_contigs",
+                                   args.identity_threshold,
+                                   args.coverage_threshold,
+                                   "p1")
+        print(sample_data["EVB-2_S265"])
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Load vp1 annotation
     if args.vp1_annotation_file:
+        print("avant")
+        print(sample_data["EVB-2_S265"])
         sample_data = load_vp1_annotation(args.vp1_annotation_file, sample_data)
+        print("apres")
+        print(sample_data["EVB-2_S265"])
     print("vp1_contigs abundance")
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Load vp1 abundance
@@ -502,7 +516,8 @@ def main():
     print("Final")
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Write result
-    write_result(sample_data, args.output_file, args.annotated, args.count_matrix_file)
+    write_result(sample_data, args.output_file, args.annotated,
+                 args.count_matrix_file, args.raw_reads_dir)
 
 
 if __name__ == "__main__":

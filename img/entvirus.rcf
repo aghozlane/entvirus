@@ -1,0 +1,48 @@
+BootStrap: docker
+From: ubuntu:16.04
+%help
+bowtie2 step
+
+%environment
+    export LC_ALL=C
+
+%files
+    ./bin/*.py /usr/local/bin
+
+%post 
+    apt -y update && apt -y install python-pip gcc g++ wget unzip gcj-jdk python3-pip
+    # Bowtie2
+    wget https://github.com/BenLangmead/bowtie2/releases/download/v2.3.4.1/bowtie2-2.3.4.1-linux-x86_64.zip
+    unzip bowtie2-2.3.4.1-linux-x86_64.zip
+    mv bowtie2-2.3.4.1-linux-x86_64/bowtie2* /usr/local/bin/
+    rm -rf bowtie2-2.3.4.1-linux-x86_64.zip bowtie2-2.3.4.1-linux-x86_64
+    # Alientrimmer
+    wget ftp://ftp.pasteur.fr/pub/gensoft/projects/AlienTrimmer/AlienTrimmer_0.4.0.tar.gz
+    tar -zxf AlienTrimmer_0.4.0.tar.gz
+    cd AlienTrimmer_0.4.0/src && make && mv AlienTrimmer /usr/local/bin/ && cd
+    # Khmer
+    pip2 install khmer
+    # Megahit
+    wget https://github.com/voutcn/megahit/releases/download/v1.1.2/megahit_v1.1.2_LINUX_CPUONLY_x86_64-bin.tar.gz
+    tar -zxf megahit_v1.1.2_LINUX_CPUONLY_x86_64-bin.tar.gz
+    mv megahit_v1.1.2_LINUX_CPUONLY_x86_64-bin/megahit* /usr/local/bin/
+    rm -rf megahit_v1.1.2_LINUX_CPUONLY_x86_64-bin megahit_v1.1.2_LINUX_CPUONLY_x86_64-bin.tar.gz
+    # Spades
+    wget http://spades.bioinf.spbau.ru/release3.11.1/SPAdes-3.11.1-Linux.tar.gz
+    tar -zxf SPAdes-3.11.1-Linux.tar.gz
+    mv SPAdes-3.11.1-Linux/bin/* /usr/local/bin/
+    # pysam
+    pip install pysam
+    # taxadb
+    pip3 install taxadb
+    # blast
+    wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.7.1/ncbi-blast-2.7.1+-x64-linux.tar.gz
+    tar -zxf ncbi-blast-2.7.1+-x64-linux.tar.gz
+    mv ncbi-blast-2.7.1+/bin/* /usr/local/bin
+    rm -rf ncbi-blast-2.7.1+-x64-linux.tar.gz ncbi-blast-2.7.1+/
+    # clean
+    rm -rf .cache/
+    # execute python
+    chmod +x /usr/local/bin/*.py
+    # pasteur dir
+    mkdir /pasteur /local

@@ -4,7 +4,7 @@ nextflow_slurm*
 nextflow_sge*
 .nfs*
 old
-img
+img/entsoft.simg
 bin/MetaCompass/
 bin/gatb-minia-pipeline/
 bin/kmer-code-2013-trunk/

@@ -21,6 +21,7 @@ import argparse
 import os
 import sys
 import csv
+import bisect
 
 
 __author__ = "Amine Ghozlane"
@@ -69,24 +70,57 @@ def get_arguments():
                         help='Output file')
     parser.add_argument('-t', dest='tag', type=str, required=True,
                         choices=["vp1", "p1"], help='Tag (vp1 or p1)')
+    parser.add_argument('-l', dest='vp1_list_file', type=isfile,
+                        help="Contig with vp1 list")
     return parser.parse_args()
 
 
+def load_vp1_list(vp1_list_file):
+    """
+    """
+    # Now vp1 exist in any case
+    vp1_list = [""]
+    try:
+        with open(vp1_list_file, "rt") as vp1_list_reader:
+            vp1_list = vp1_list_reader.read().splitlines()
+            vp1_list.sort()
+    except IOError:
+        sys.exit("Error cannot open {0}".format(vp1_list_file))
+    return vp1_list
+
+
+def get_element(input_list, name):                                               
+    """Search name in input list                                                 
+      Arguments:                                                                 
+        input_list: List                                                         
+        name: Search criteria                                                    
+    """                                                                          
+    # Searching the node with its name                                           
+    i = bisect.bisect_left(input_list, name)                                     
+    # Object has been found                                                      
+    if(i != len(input_list) and input_list[i] == name):                          
+        return True                                                              
+    return False 
+
 def load_blast(blast_result_file, identity_threshold, coverage_threshold,
-               vp1_id_dict):
+               vp1_id_dict, vp1_list):
     """Load blast position identification and filter
     """
     position_dict = {}
     reverse_comp = False
     diff_length = 0
+    valid = True
     try:
         with open(blast_result_file, "rt") as blast_result:
             blast_reader = csv.reader(blast_result, delimiter='\t')
             for line in blast_reader:
                 #print("id:" + str(round(float(line[8]),1)))
                 #print("cov:" +str(round(100.0 * float(line[3])/vp1_id_dict[line[1]][1])))
+                # If no list always valid
+                if vp1_list:
+                    valid = get_element(vp1_list, line[0])
                 if (round(float(line[8]),1) >= identity_threshold and
-                    round(100.0 * float(line[3])/vp1_id_dict[line[1]][1]) >= coverage_threshold):
+                    round(100.0 * float(line[3])/vp1_id_dict[line[1]][1]) >= coverage_threshold and valid):
                     sstart = int(line[6])
                     send = int(line[7])
                     qlen = int(line[2])
@@ -214,14 +248,18 @@ def main():
     """
     Main program function
     """
+    vp1_list = []
     # Get arguments
     args = get_arguments()
     # Load vp1
     vp1_id_dict = load_vp1_id(args.vp1_info_file)
+    # Load list of contigs with vp1
+    if args.vp1_list:
+        vp1_list = load_vp1_list(args.vp1_list_file)
     #print(vp1_id_dict)
     # Load blast info
     position_dict = load_blast(args.blast_result_file, args.identity_threshold,
-                               args.coverage_threshold, vp1_id_dict)
+                               args.coverage_threshold, vp1_id_dict, vp1_list)
     #print(position_dict)
     # Extract sequence
     if len(position_dict) > 0:

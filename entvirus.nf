@@ -328,36 +328,6 @@ process blast {
 
 allblastChannel.subscribe { it.copyTo(blastDir) }
 
-process p1 {
-    publishDir "$myDir", mode: 'copy'
-
-    input:
-    set contigsID, file(contigs), file(p1blast) from p1blastChannel
-
-    output:
-    file("p1/*_p1.fasta") into p1Channel
-
-    shell:
-    """
-    #!/usr/bin/env bash
-    mkdir p1
-    nlines=\$(wc -l !{p1blast} |cut -f 1 -d ' ')
-    if [ \${nlines} -gt '0' ]
-    then
-       # Extract VP1 sequence
-       extract_sequence.py -q !{contigs} -b !{p1blast} \
-            -o p1/!{contigsID}_p1.fasta -a !{params.p1info} \
-            -c !{params.p1coverage} -t p1
-    else
-        touch p1/!{contigsID}_p1.fasta
-   fi
-   """
-}
-
-p1Channel.collectFile(name: 'p1sequences.fasta')
-         .into{ p1mbma ; p1tosave ; p1fasta }
-p1tosave.subscribe { it.copyTo(myDir) }
-
 // Extract vp1 sequences
 process vp1 {
     publishDir "$myDir", mode: 'copy'
@@ -369,7 +339,7 @@ process vp1 {
     file("vp1/*_vp1.fasta") into vp1Channel
     file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannel
     file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannelresume
-
+    file("vp1/{contigsID}_vp1_list.txt") into vp1setChannel
     shell:
     """
     #!/usr/bin/env bash
@@ -385,15 +355,52 @@ process vp1 {
         grab_catalogue_sequence.py -i !{vp1blast} \
                -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs.fasta \
                -a !{params.vp1info} -v !{params.vp1coverage}
+        nseq=\$(grep "^>" -c vp1/!{contigsID}_vp1.fasta)
+        if [ \${nseq} -gt '0' ]
+        then
+            grep "^>" vp1/!{contigsID}_vp1.fasta |sed "s:_p1::g" > vp1/!{contigsID}_vp1_list.txt
+        fi
     else
         touch vp1_contigs/!{contigsID}_vp1_contigs.fasta vp1/!{contigsID}_vp1.fasta
     fi
     """
 }
+vp1listChannel =  vp1setChannel.collectFile(name: 'vp1_list.txt')
 
 vp1Channel.collectFile(name: 'vp1sequences.fasta')
           .into { vp1tosave ; vp1fasta}
 vp1tosave.subscribe { it.copyTo(myDir) }
+
+process p1 {
+    publishDir "$myDir", mode: 'copy'
+
+    input:
+    set contigsID, file(contigs), file(p1blast) from p1blastChannel
+    file(vp1list) from vp1listChannel
+
+    output:
+    file("p1/*_p1.fasta") into p1Channel
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir p1
+    nlines=\$(wc -l !{p1blast} |cut -f 1 -d ' ')
+    if [ \${nlines} -gt '0' ]
+    then
+       # Extract VP1 sequence
+       extract_sequence.py -q !{contigs} -b !{p1blast} \
+            -o p1/!{contigsID}_p1.fasta -a !{params.p1info} \
+            -c !{params.p1coverage} -t p1 -l !{vp1list}
+    else
+        touch p1/!{contigsID}_p1.fasta
+   fi
+   """
+}
+
+p1Channel.collectFile(name: 'p1sequences.fasta')
+         .into{ p1mbma ; p1tosave ; p1fasta }
+p1tosave.subscribe { it.copyTo(myDir) }
 
 /*process vp1_vsearch {
     publishDir "$myDir", mode: 'copy'

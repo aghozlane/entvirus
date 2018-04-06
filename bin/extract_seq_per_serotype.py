@@ -138,12 +138,10 @@ def get_sequence(query_dict, fasta_file):
     """
     result = {}
     title = None
-    print(query_dict)
     try:
         with open(fasta_file, "rt") as target:
             for line in target:
                 if title and line[0] != ">":
-                    print(title)
                     result[title] += line[0:].strip().replace("\n", "").replace("\r", "")
                 if line.startswith(">"):
                     if len(result) == len(query_dict):

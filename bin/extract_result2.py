@@ -306,8 +306,8 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
                     if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
                         round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
                         # Gives id and coverage against vp1 db
-                        print(vp1_dict)
-                        print(vp1_id_dict[vp1_dict[vp1][0]])
+                        # print(vp1_dict)
+                        # print(vp1_id_dict[vp1_dict[vp1][0]])
                         sample_data[name][tag][vp1] += (
                             [vp1 + "_" + type_seq, vp1_dict[vp1][0], 
                              vp1_id_dict[vp1_dict[vp1][0]][0], vp1_dict[vp1][1], 
@@ -526,9 +526,9 @@ def write_annotation_matrix(sample_data, output_annotation_file,
             output_writer.writerow(["contigs", "serotype", "specie"] )
             for sample in sample_list:
                 for vp1 in sample_data[sample]["vp1_contigs"]:
-                    print(vp1)
-                    print(sample_data[sample]["vp1_contigs"][vp1])
-                    print(serotype_association_dict)
+                    # print(vp1)
+                    # print(sample_data[sample]["vp1_contigs"][vp1])
+                    # print(serotype_association_dict)
                     output_writer.writerow(
                         [vp1, sample_data[sample]["vp1_contigs"][vp1][3],
                         serotype_association_dict[sample_data[sample]["vp1_contigs"][vp1][3]]])

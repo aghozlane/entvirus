@@ -83,7 +83,6 @@ def load_blast(blast_result_file, identity_threshold, coverage_threshold,
         with open(blast_result_file, "rt") as blast_result:
             blast_reader = csv.reader(blast_result, delimiter='\t')
             for line in blast_reader:
-                #print(line)
                 #print("id:" + str(round(float(line[8]),1)))
                 #print("cov:" +str(round(100.0 * float(line[3])/vp1_id_dict[line[1]][1])))
                 if (round(float(line[8]),1) >= identity_threshold and
@@ -104,10 +103,11 @@ def load_blast(blast_result_file, identity_threshold, coverage_threshold,
                         if vp1_id_dict[line[1]][1] > sstart:
                             diff_length = vp1_id_dict[line[1]][1] - sstart
                             # need to extend query start
-                            extended = qend + diff_length
-                            if extended > qlen:
-                                diff_length = qlen - length
-                            start_position = qstart - diff_length
+                            extended = qstart - diff_length
+                            if extended < 0:
+                                start_position = 1
+                            else:
+                                start_position = extended
                     else:
                         reverse_comp = False
                         if vp1_id_dict[line[1]][1] > send:

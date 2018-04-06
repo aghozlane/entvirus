@@ -122,22 +122,22 @@ process filtering {
         dsrc d -t!{params.cpus} !{reads[1]} raw/${pair_id}_R2.fastq
     ;;
     *.gz )
-        gunzip !{reads[0]} -c > raw/${pair_id}_R1.fastq
-        gunzip !{reads[1]} -c > raw/${pair_id}_R2.fastq
+        pigz -d -c -n !{params.cpus} !{reads[0]} > raw/!{pair_id}_R1.fastq
+        pigz -d -c -n !{params.cpus} !{reads[1]} -c > raw/!{pair_id}_R2.fastq
     ;;
     *)
-        ln -s !{reads[0]} raw/${pair_id}_R1.fastq
-        ln -s !{reads[1]} raw/${pair_id}_R2.fastq
+        ln -s !{reads[0]} raw/!{pair_id}_R1.fastq
+        ln -s !{reads[1]} raw/!{pair_id}_R2.fastq
     ;;
     esac
     mkdir unmapped
     if [ !{params.focus} ==  "no" ]
     then
-        bowtie2 -q -N !{params.mismatch} -1 raw/${pair_id}_R1.fastq -2 raw/${pair_id}_R2.fastq \
+        bowtie2 -q -N !{params.mismatch} -1 raw/!{pair_id}_R1.fastq -2 raw/!{pair_id}_R2.fastq \
                 -x !{params.contaminant} --un-conc unmapped/ -S /dev/null \
                 -p !{params.cpus} --very-sensitive-local
     else
-        bowtie2 -q -N !{params.mismatch} -1 raw/${pair_id}_R1.fastq -2 raw/${pair_id}_R2.fastq \
+        bowtie2 -q -N !{params.mismatch} -1 raw/!{pair_id}_R1.fastq -2 raw/!{pair_id}_R2.fastq \
                 -x !{params.viral} --al-conc unmapped/ -S /dev/null \
                 -p !{params.cpus} --very-sensitive-local
     fi
@@ -147,7 +147,6 @@ process filtering {
 
 process trimming {
     //publishDir "$myDir", mode: 'copy'
-    cpus params.cpus
 
     input:
     set pair_id, file(forward), file(reverse) from unmappedChannel
@@ -164,7 +163,7 @@ process trimming {
     AlienTrimmer -if ${forward} -ir ${reverse} -of ${pair_id}_R1.fastq \
                  -or ${pair_id}_R2.fastq \
                  -c ${params.alienseq} -l ${params.minlength}
-    gzip -c ${pair_id}_R1.fastq >  ${pair_id}_R1.fastq.gz
+    gzip -c ${pair_id}_R1.fastq > ${pair_id}_R1.fastq.gz
     gzip -c ${pair_id}_R2.fastq > ${pair_id}_R2.fastq.gz
     """
 
@@ -192,17 +191,17 @@ process khmer {
     """
     #!/usr/bin/env bash
     mkdir khmer
-    interleave-reads.py ${forward} ${reverse} --output interleaved.pe
+    interleave-reads.py !{forward} !{reverse} --output interleaved.pe
     normalize-by-median.py -p -k 20 -C 20 -N 4 -x 3e9 --savegraph graph.ct \
         interleaved.pe --output output.pe.keep
     filter-abund.py -V graph.ct output.pe.keep --output output.pe.filter \
         -T ${params.cpus}
     extract-paired-reads.py output.pe.filter --output-paired output.dn.pe \
         --output-single output.dn.se
-    split-paired-reads.py output.dn.pe -1 khmer/${pair_id}_khmer_R1.fastq \
-        -2 khmer/${pair_id}_khmer_R2.fastq
-    gzip -c khmer/${pair_id}_khmer_R1.fastq >  khmer/${pair_id}_R1.fastq.gz
-    gzip -c khmer/${pair_id}_khmer_R2.fastq > khmer/${pair_id}_R2.fastq.gz
+    split-paired-reads.py output.dn.pe -1 khmer/!{pair_id}_khmer_R1.fastq \
+        -2 khmer/!{pair_id}_khmer_R2.fastq
+    pigz -c -p !{params.cpus} khmer/!{pair_id}_khmer_R1.fastq >  khmer/!{pair_id}_R1.fastq.gz
+    pigz -c -p !{params.cpus} khmer/!{pair_id}_khmer_R2.fastq > khmer/!{pair_id}_R2.fastq.gz
     """
 }
 
@@ -305,7 +304,7 @@ process blast {
     set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel
     set contigsID, file(contigs), file("blast/*_p1.tsv") into p1blastChannel
     file("blast/*_vp1.tsv") into vp1blastChannelresume
-    file("blast/*_p1.tsv") into p1blastChannelresume   
+    file("blast/*_p1.tsv") into p1blastChannelresume
     set contigsID, file("blast/*_nt.tsv") into blastChannel
     file("blast/*.tsv") into allblastChannel mode flatten
 
@@ -511,7 +510,7 @@ process abundance_vp1 {
     mbma.py mapping --r1 !{forward} --r2 !{reverse} -o abundance \
            -db p1mbma.index -e !{params.mail} -q !{params.queue} \
            -p !{params.partition} --bowtie2 \
-           --shared -m PE -t !{params.cpus}
+           --best -m PE -t !{params.cpus}
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
     """
 }

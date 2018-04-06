@@ -184,7 +184,8 @@ def parse_fasta(fasta_file, tag=None):
                         len_seq = len(sequence)
                         seq_len_tab.append(len_seq)
                         if tag == 'vp1_contigs':
-                            seq_info[header] = [len_seq, sequence]
+                            #seq_info[header] = [len_seq, sequence]
+                            seq_info[header] = [len_seq]
                         else:
                             seq_info[header] = [len_seq]
                         sequence = ""
@@ -525,6 +526,9 @@ def write_annotation_matrix(sample_data, output_annotation_file,
             output_writer.writerow(["contigs", "serotype", "specie"] )
             for sample in sample_list:
                 for vp1 in sample_data[sample]["vp1_contigs"]:
+                    print(vp1)
+                    print(sample_data[sample]["vp1_contigs"][vp1])
+                    print(serotype_association_dict)
                     output_writer.writerow(
                         [vp1, sample_data[sample]["vp1_contigs"][vp1][3],
                         serotype_association_dict[sample_data[sample]["vp1_contigs"][vp1][3]]])

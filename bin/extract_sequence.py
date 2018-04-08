@@ -254,7 +254,7 @@ def main():
     # Load vp1
     vp1_id_dict = load_vp1_id(args.vp1_info_file)
     # Load list of contigs with vp1
-    if args.vp1_list:
+    if args.vp1_list_file:
         vp1_list = load_vp1_list(args.vp1_list_file)
     #print(vp1_id_dict)
     # Load blast info

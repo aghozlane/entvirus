@@ -310,6 +310,7 @@ process blast {
 
     shell:
     """
+    #!/usr/bin/env bash
     mkdir blast
     blastn -query !{contigs}  -db !{params.vp1}  -num_threads !{params.cpus} \
            -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 \
@@ -339,13 +340,13 @@ process vp1 {
     file("vp1/*_vp1.fasta") into vp1Channel
     file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannel
     file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannelresume
-    file("vp1/{contigsID}_vp1_list.txt") into vp1setChannel
+    file("vp1/*_vp1_list.txt") into vp1setChannel
     shell:
     """
     #!/usr/bin/env bash
     mkdir vp1 vp1_contigs
     nlines=\$(wc -l !{vp1blast} |cut -f 1 -d ' ')
-    if [ \${nlines} -gt '0' ]
+    if [ "\${nlines}" -gt '0' ]
     then
         # Extract VP1 sequence
         extract_sequence.py -q !{contigs} -b !{vp1blast} \
@@ -356,12 +357,14 @@ process vp1 {
                -d !{contigs} -o vp1_contigs/!{contigsID}_vp1_contigs.fasta \
                -a !{params.vp1info} -v !{params.vp1coverage}
         nseq=\$(grep "^>" -c vp1/!{contigsID}_vp1.fasta)
-        if [ \${nseq} -gt '0' ]
+        if [ "\${nseq}" -gt '0' ]
         then
-            grep "^>" vp1/!{contigsID}_vp1.fasta |sed "s:_p1::g" > vp1/!{contigsID}_vp1_list.txt
+            grep "^>" vp1/!{contigsID}_vp1.fasta |cut -f 1 -d " " | sed "s:>::g" |sed "s:_vp1::g" > vp1/!{contigsID}_vp1_list.txt
+        else
+            touch vp1/!{contigsID}_vp1_list.txt
         fi
     else
-        touch vp1_contigs/!{contigsID}_vp1_contigs.fasta vp1/!{contigsID}_vp1.fasta
+        touch vp1_contigs/!{contigsID}_vp1_contigs.fasta vp1/!{contigsID}_vp1.fasta vp1/!{contigsID}_vp1_list.txt
     fi
     """
 }
@@ -373,10 +376,11 @@ vp1tosave.subscribe { it.copyTo(myDir) }
 
 process p1 {
     publishDir "$myDir", mode: 'copy'
+    cache 'deep'
 
     input:
     set contigsID, file(contigs), file(p1blast) from p1blastChannel
-    file(vp1list) from vp1listChannel
+    each file(vp1list) from vp1listChannel
 
     output:
     file("p1/*_p1.fasta") into p1Channel
@@ -514,6 +518,7 @@ process abundance_vp1 {
     // change to shared
     shell:
     """
+    #!/usr/bin/env bash
     mbma.py mapping --r1 !{forward} --r2 !{reverse} -o abundance \
            -db p1mbma.index -e !{params.mail} -q !{params.queue} \
            -p !{params.partition} --bowtie2 \
@@ -548,7 +553,7 @@ process combine_annotation {
 
     shell:
     """
-    #!/bin/bash
+    #!/usr/bin/env bash
     nlines=\$(wc -l !{ncbi_annotation}|cut -f 1 -d ' ')
     if [ \${nlines} -gt '0' ]
     then
@@ -693,8 +698,15 @@ process multiple_alignment {
 
     shell:
     """
-    mkdir msa
-    mafft --thread !{params.cpus} --maxiterate 1000 --globalpair !{fasta} > msa/!{fasta.baseName}.ali
+    #!/usr/bin/env bash
+    mkdir -p msa
+    nseq=\$( grep -c "^>" !{fasta} )
+    if [ "\${nseq}" -gt '1' ]
+    then
+        mafft --thread !{params.cpus} --maxiterate 1000 --globalpair !{fasta} > msa/!{fasta.baseName}.ali
+    else
+        touch msa/!{fasta.baseName}.ali
+    fi
     """
 
 }
@@ -711,8 +723,15 @@ process filtering_alignment {
 
     shell:
     """
-    mkdir msa
-    BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge.ali
+    #!/usr/bin/env bash
+    mkdir -p msa
+    nseq=\$( grep -c "^>" !{msa} )
+    if [ "\${nseq}" -gt '1' ]
+    then
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge.ali
+    else
+        touch msa/!{msa.baseName}_bmge.ali
+    fi
     """
 
 }
@@ -730,9 +749,16 @@ process phylogeny {
 
     shell:
     """
+    #!/usr/bin/env bash
     mkdir phylogeny
-    iqtree -m GTR+I+G4  -s !{msafilt}
-    mv *.treefile phylogeny/
+    nseq=\$( grep -c "^>" !{msafilt} )
+    if [ "\${nseq}" -gt '1' ]
+    then
+        iqtree -m GTR+I+G4  -s !{msafilt}
+        mv *.treefile phylogeny/
+    else
+        touch phylogeny/!{msafilt.baseName}.treefile
+    fi
     """
 }
 

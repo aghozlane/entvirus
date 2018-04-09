@@ -310,8 +310,9 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
                         # print(vp1_id_dict[vp1_dict[vp1][0]])
                         sample_data[name][tag][vp1] += (
                             [vp1 + "_" + type_seq, vp1_dict[vp1][0], 
-                             vp1_id_dict[vp1_dict[vp1][0]][0], vp1_dict[vp1][1], 
+                             vp1_id_dict[vp1_dict[vp1][0]][0], 
                              serotype_association_dict[vp1_id_dict[vp1_dict[vp1][0]][0]], 
+                             vp1_dict[vp1][1],
                              round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)])
                         annotation_list += [[vp1 + "_" + type_seq, 
                                              vp1_id_dict[vp1_dict[vp1][0]][0],
@@ -357,12 +358,13 @@ def get_abundance(sample_data, count_matrix_file):
                 #print(sample_data[sample_list[0]]['vp1_contigs'][line[0]])
                 for i in xrange(len(sample_list)):
                     if 'vp1_contigs' in  sample_data[sample_list[i]]:
-                        if line[0] in sample_data[sample_list[i]]['vp1_contigs']:
+                        contigname = line[0].replace("_p1", "")
+                        if contigname in sample_data[sample_list[i]]['vp1_contigs']:
                             if total_abundance[i] > 0.0:
                                 # Raw abundance
-                                sample_data[sample_list[i]]['vp1_contigs'][line[0]] += [abundances[i], abundances[i] / total_abundance[i]]
+                                sample_data[sample_list[i]]['vp1_contigs'][contigname] += [abundances[i], abundances[i] / total_abundance[i]]
                             else:
-                                sample_data[sample_list[i]]['vp1_contigs'][line[0]] += [0.0]
+                                sample_data[sample_list[i]]['vp1_contigs'][contigname] += [0.0]
                             #print(sample_data[sample_list[i]]['vp1_contigs'][line[0]])
     except IOError:
         sys.exit("Error cannot open {0}".format(count_matrix_file))
@@ -420,7 +422,7 @@ def write_result(sample_data, output_file, annotated, count_matrix_file,
     if annotated == "yes":
         info += ["ID1", "ID2", "ID3", "ID4"]
     if count_matrix_file:
-        main_info += ["Raw abundance", "Relative abundance"]
+        main_info += ["Raw_abundance_of_P1", "Relative_abundance_of_P1"]
     
     try:
         with open(output_file, "wt") as output:

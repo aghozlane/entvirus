@@ -65,8 +65,6 @@ def get_arguments():
             .format(sys.argv[0]))
     parser.add_argument('-i', dest='resume_file', type=isfile, required=True,
                         help='Path to the resume file.')
-    parser.add_argument('-a', dest='association_file', type=isfile, required=True,
-                        help='Path to the association file.')
     parser.add_argument('-f', dest='fasta_file', type=isfile, required=True,
                         help='Path to the database file.')
     parser.add_argument('-t', dest='tag', type=str, required=True,
@@ -79,58 +77,44 @@ def get_arguments():
                         help='Path to result directory.')
     return parser.parse_args()
 
+def get_unique(seq):
+    # Not order preserving
+    return {}.fromkeys(seq).keys()
 
 def get_query(query_file, tag):
     """Load resume file
     """
+    classify_list = []
     query_dict = {}
     try:
         with open(query_file, "rt") as query:
             query_reader = csv.reader(query, delimiter="\t")
             header = query_reader.next()
             interest_seq_posit = header.index(tag)
-            interest_type_posit = header.index("Serotype_VP1")
+            interest_serotype_posit = header.index("Serotype_VP1")
+            interest_specie_posit = header.index("Specie_VP1")
             for line in query_reader:
                 line_len = len(line)
-                #print(line_len)
-                if line_len > interest_seq_posit and line_len > interest_type_posit:
+                #print(line)
+                if line_len > interest_seq_posit and line_len > interest_serotype_posit:
                     if line[interest_seq_posit] != "":
                         #print(line)
                         assert(line[interest_seq_posit] not in query_dict)
-                        query_dict[line[interest_seq_posit]] = line[interest_type_posit].upper()
+                        query_dict[line[interest_seq_posit]] = [
+                            line[interest_serotype_posit].upper(),
+                            line[interest_specie_posit].upper()]
+                        # Serotype and specie
+                        classify_list += [line[interest_serotype_posit].upper(),
+                                          line[interest_specie_posit].upper()]
+            classify_list.sort()
+            classify_list = get_unique(classify_list)
     except IOError:
         sys.exit("Error cannot open {0}".format(query_file))
     except AssertionError:
         print(line[interest_seq_posit])
         print(query_dict)
         sys.exit("Strange value in {0}".format(query_file))
-    return query_dict
-
-
-def get_unique(seq):
-    # Not order preserving
-    return {}.fromkeys(seq).keys()
-
-def get_association(association_file):
-    """
-    """
-    association_dict = {}
-    serotype = []
-    try:
-        with open(association_file, "rt") as association:
-            association_reader = csv.reader(association, delimiter="\t")
-            # Pass header
-            association_reader.next()
-            for line in association_reader:
-                association_dict[line[1]] = line[0]
-                serotype += [line[0]]
-            serotype = get_unique(serotype)
-            assert(len(association_dict) > 0)
-    except IOError:
-        sys.exit("Error cannot open {0}".format(association_file))
-    except AssertionError:
-        sys.exit("Nothing read from {0}".format(association_file))
-    return association_dict, serotype
+    return query_dict, classify_list
 
 
 def get_sequence(query_dict, fasta_file):
@@ -166,23 +150,26 @@ def fill(text, width=80):
     return os.linesep.join(text[i:i+width] for i in xrange(0, len(text), width))
 
 
-def write_sequence(results, sequence_data, query_dict, association_dict,
-                   serotype, tag, root_seq_file):
+def write_sequence(results, sequence_data, query_dict, classify_list, tag,
+                   root_seq_file):
     """
     """
     root_lines = ""
     output_list = []
     try:
-        for serty in serotype:
-            output_file = results + os.sep + serty + "_" + tag + ".fasta"
+        for clas in classify_list:
+            output_file = results + os.sep + clas + "_" + tag + ".fasta"
             if root_seq_file:
-                output_file = results + os.sep + serty + "_" + tag + "_rooted.fasta"
+                output_file = results + os.sep + clas + "_" + tag + "_rooted.fasta"
                 with open(root_seq_file, "rt") as root_seq:
                     root_lines = root_seq.readlines()
             output_list += [open(output_file, "wt")]
         for seq in sequence_data:
-            interest_ser_posit = serotype.index(association_dict[query_dict[seq]])
-            output_list[interest_ser_posit].write(">{1}{0}{2}{0}".format(
+            serotype_posit = classify_list.index(query_dict[seq][0])
+            output_list[serotype_posit].write(">{1}{0}{2}{0}".format(
+                os.linesep, seq, fill(sequence_data[seq])))
+            specie_posit = classify_list.index(query_dict[seq][1])
+            output_list[specie_posit].write(">{1}{0}{2}{0}".format(
                 os.linesep, seq, fill(sequence_data[seq])))
         
         for output in output_list:
@@ -200,16 +187,14 @@ def main():
     args = get_arguments()
     # Load query elements
     print("Load resume file")
-    query_dict = get_query(args.resume_file, args.tag)
-    print("Load association list")
-    association_dict, serotype = get_association(args.association_file)
+    query_dict, classify_list = get_query(args.resume_file, args.tag)
     # Grab query sequence in the database
     print("Load database sequence")
     sequence_data = get_sequence(query_dict, args.fasta_file)
     # Write the new fasta file
     print("Write the new fasta")
-    write_sequence(args.results, sequence_data, query_dict, association_dict,
-                   serotype, tag_dict[args.tag], args.root_seq_file)
+    write_sequence(args.results, sequence_data, query_dict, 
+                   classify_list, tag_dict[args.tag], args.root_seq_file)
     print("Done")
 
 if __name__ == '__main__':

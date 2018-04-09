@@ -251,7 +251,6 @@ def main():
     #
     if not args.not_in_database:
         rev_comp(interest_sequence, list_reverse_comp)
-    print()
     # Write sequences
     if not args.output_file:
        args.output_file = "extracted_sequence.fasta"

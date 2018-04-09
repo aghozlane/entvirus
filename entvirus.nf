@@ -642,7 +642,7 @@ else{
         file(vp1blast) from vp1blastChannelresume.toList()
         file(p1blast) from p1blastChannelresume.toList()
         file(vp1contigs_annot) from vp1finalChannel
-        file countChannel
+        file(countmatrix) from countChannel
 
         output:
         file("result_summary.tsv") into resultChannel
@@ -655,7 +655,7 @@ else{
         mkdir abundance occurence
         extract_result2.py -r1 !{rawr1} -r2 !{rawr2} -pr1 !{procr1} -pr2 !{procr2} -a !{params.vp1info}\
             -vp1 !{vp1contigs_annot} -o result_summary.tsv \
-            -n !{countChannel} -l !{params.annotated} -v !{params.vp1coverage}\
+            -n !{countmatrix} -l !{params.annotated} -v !{params.vp1coverage}\
             -p !{params.p1info} -c !{contigs} -vp1c !{vp1contigs} -bvp1 !{vp1blast} -bp1 !{p1blast}\
             -s !{params.ent_serotype} -os abundance/annotation.tsv -oc occurence/count.tsv -oa occurence/annotation.tsv
         """
@@ -666,7 +666,7 @@ else{
 //resultChannelabundance.subscribe { it.copyTo(myDir) }
 //fastachan = Channel.from(["Contigs_with_VP1", ${vp1contigsfasta}], ["P1_sequences", ${p1fasta}], ["VP1_sequences", ${vp1fasta}])
 
-process extract_per_serotype {
+process enterovirus_classification {
     publishDir "$myDir", mode: 'copy'
     cache 'deep'
 
@@ -679,17 +679,17 @@ process extract_per_serotype {
 
     output:
     //set "!{fasta.baseName}", file("*.fasta") into fastaserotype
-    file("by_serotype/*.fasta") into fastaserotype mode flatten
+    file("entovirus_classified/*.fasta") into fastaclassified mode flatten
 
     shell:
     """
-    mkdir by_serotype
-    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1contigsfasta} -o by_serotype/ -t "Contigs_with_VP1"
-    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{p1fasta} -o by_serotype/ -t "P1_sequences"
-    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1fasta} -o by_serotype/ -t "VP1_sequences"
-    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1contigsfasta} -o by_serotype/ -t "Contigs_with_VP1" -r !{params.root_seq_full}
-    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{p1fasta} -o by_serotype/ -t "P1_sequences" -r !{params.root_seq_p1}
-    extract_seq_per_serotype.py -i !{result_summary} -a !{params.ent_serotype} -f !{vp1fasta} -o by_serotype/ -t "VP1_sequences" -r !{params.root_seq_vp1}
+    mkdir entovirus_classified/
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o entovirus_classified/ -t "Contigs_with_VP1"
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o entovirus_classified/ -t "P1_sequences"
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o entovirus_classified/ -t "VP1_sequences"
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o entovirus_classified/ -t "Contigs_with_VP1" -r !{params.root_seq_full}
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o entovirus_classified/ -t "P1_sequences" -r !{params.root_seq_p1}
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  entovirus_classified/ -t "VP1_sequences" -r !{params.root_seq_vp1}
     """
 }
 
@@ -700,7 +700,7 @@ process multiple_alignment {
 
     input:
     //set fastaID, file(fasta) from fastaserotype
-    file(fasta) from fastaserotype
+    file(fasta) from fastaclassified
 
     output:
     //set fastaID, file("msa/*.ali") into msaserotype
@@ -768,9 +768,13 @@ process phylogeny {
     #!/usr/bin/env bash
     mkdir phylogeny
     nseq=\$( grep -c "^>" !{msafilt} )
-    if [ "\${nseq}" -gt '1' ]
+    if [ "\${nseq}" -gt '200' ]
     then
         iqtree -m GTR+I+G4 -nt !{params.cpus} -s !{msafilt}
+        mv *.treefile phylogeny/
+    elif [ "\${nseq}" -gt '1' ]
+    then
+        iqtree -m GTR+I+G4 -s !{msafilt}
         mv *.treefile phylogeny/
     else
         touch phylogeny/!{msafilt.baseName}.treefile

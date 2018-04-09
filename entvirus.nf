@@ -78,6 +78,7 @@ params.vp1coverage = 50
 params.p1coverage = 50
 params.abundance = "no"
 params.evalue = 1E-3
+params.filter_matrix = 100
 params.ent_serotype = "$baseDir/databases/enterovirus_species_type-2018-04.csv"
 params.conserved_position = 0.8
 params.root_seq_full = "$baseDir/databases/RV-A1B-B632-D00239.fa"
@@ -479,6 +480,7 @@ vp1contigs = vp1contigsChannel.collectFile(name: 'vp1contigs.fasta')
 
 process buildIndex {
     cpus params.cpus
+    cache 'deep'
     //publishDir "$myDir", mode: 'copy'
     //clusterOptions='--qos=normal -p common'
 
@@ -502,6 +504,7 @@ process abundance_vp1 {
     //queue = 'common'
     //clusterOptions='--qos=normal -p common'
     publishDir "$myDir", mode: 'copy'
+    cache 'deep'
     //errorStrategy 'finish'
 
     input:
@@ -515,6 +518,7 @@ process abundance_vp1 {
 
     output:
     file("abundance/count_matrix.tsv") into countChannel
+    file("abundance/count_matrix_shaman.tsv") into count_shamanChannel
     // change to shared
     shell:
     """
@@ -523,6 +527,7 @@ process abundance_vp1 {
            -db p1mbma.index -e !{params.mail} -q !{params.queue} \
            -p !{params.partition} --bowtie2 \
            --best -m PE -t !{params.cpus}
+    filter_count_matrix.py abundance/comptage/count_matrix.txt !{params.filter_matrix} abundance/count_matrix_shaman.tsv
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
     """
 }
@@ -540,6 +545,7 @@ process abundance_vp1 {
 
 process combine_annotation {
     publishDir "$myDir", mode: 'copy'
+    cache 'deep'
 
     input:
     file(ncbi_annotation) from combineChannel
@@ -592,6 +598,7 @@ process combine_annotation {
 if ( params.abundance == "no") {
     process summary {
         publishDir "$myDir", mode: 'copy'
+        cache 'deep'
 
         input:
         file(rawr1) from r1Channelresume.toList()
@@ -623,6 +630,7 @@ if ( params.abundance == "no") {
 else{
     process summary_abundance {
         publishDir "$myDir", mode: 'copy'
+        cache 'deep'
 
         input:
         file(rawr1) from r1Channelresume.toList()
@@ -660,6 +668,7 @@ else{
 
 process extract_per_serotype {
     publishDir "$myDir", mode: 'copy'
+    cache 'deep'
 
     input:
     file(result_summary) from resultChannel
@@ -687,6 +696,7 @@ process extract_per_serotype {
 process multiple_alignment {
     publishDir "$myDir", mode: 'copy'
     cpus params.cpus
+    cache 'deep'
 
     input:
     //set fastaID, file(fasta) from fastaserotype
@@ -701,9 +711,12 @@ process multiple_alignment {
     #!/usr/bin/env bash
     mkdir -p msa
     nseq=\$( grep -c "^>" !{fasta} )
-    if [ "\${nseq}" -gt '1' ]
+    if [ "\${nseq}" -ge '200' ]
     then
-        mafft --thread !{params.cpus} --maxiterate 1000 --globalpair !{fasta} > msa/!{fasta.baseName}.ali
+        mafft --retree 1 --thread !{params.cpus} !{fasta} > msa/!{fasta.baseName}.ali
+    elif [ "\${nseq}" -gt '1' ]
+    then
+        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > msa/!{fasta.baseName}.ali
     else
         touch msa/!{fasta.baseName}.ali
     fi
@@ -713,6 +726,8 @@ process multiple_alignment {
 
 process filtering_alignment {
     publishDir "$myDir", mode: 'copy'
+    cache 'deep'
+
     input:
     //set fastaID, file(msa) from msaserotype
     file(msa) from msaserotype
@@ -739,6 +754,7 @@ process filtering_alignment {
 process phylogeny {
     publishDir "$myDir", mode: 'copy'
     cpus params.cpus
+    cache 'deep'
 
     input:
     //set fastaID, file(msafilt) from msafiltserotype
@@ -754,7 +770,7 @@ process phylogeny {
     nseq=\$( grep -c "^>" !{msafilt} )
     if [ "\${nseq}" -gt '1' ]
     then
-        iqtree -m GTR+I+G4  -s !{msafilt}
+        iqtree -m GTR+I+G4 -nt !{params.cpus} -s !{msafilt}
         mv *.treefile phylogeny/
     else
         touch phylogeny/!{msafilt.baseName}.treefile

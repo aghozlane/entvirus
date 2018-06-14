@@ -22,6 +22,7 @@ import glob
 import gzip
 import tempfile
 import subprocess
+import bisect
 
 __author__ = "Amine Ghozlane"
 __copyright__ = "Copyright 2017, Institut Pasteur"
@@ -82,12 +83,28 @@ def get_arguments():
                         help='all set of contigs.')
     parser.add_argument('-vp1c', dest='vp1_contigs', type=isfile, nargs='+',
                         help='all set of vp1_contigs.')
-    parser.add_argument('-bvp1', dest='blast_vp1', type=isfile, nargs='+',
+    parser.add_argument('-bvp1', dest='blast_vp1_file', type=isfile, #nargs='+',
                         help='Blast_vp1.')
-    parser.add_argument('-bp1', dest='blast_p1', type=isfile, nargs='+',
+    parser.add_argument('-bp1', dest='blast_p1_file', type=isfile, #nargs='+',
                         help='Blast_p1.')
+    parser.add_argument('-b5utr', dest='blast_5utr_file', type=isfile, #nargs='+',
+                        help='Blast_5utr.')
+    parser.add_argument('-b3d', dest='blast_3d_file', type=isfile, #nargs='+',
+                        help='Blast_3d.')
+    parser.add_argument('-bntvp1', dest='blastnt_vp1_file', type=isfile, #nargs='+',
+                        help='Blast_nt_vp1.')
+    parser.add_argument('-bntp1', dest='blastnt_p1_file', type=isfile, #nargs='+',
+                        help='Blast_nt_p1.')
+    parser.add_argument('-bnt5utr', dest='blastnt_5utr_file', type=isfile, #nargs='+',
+                        help='Blast_nt_5utr.')
+    parser.add_argument('-bnt3d', dest='blastnt_3d_file', type=isfile, #nargs='+',
+                        help='Blast_nt_3d.')
     parser.add_argument('-a', dest='vp1_id_file', type=isfile, default=None,
                         help='VP1 database annotation')
+    parser.add_argument('-3d', dest='id_file_3d', type=isfile, default=None,
+                        help='3d database annotation')
+    parser.add_argument('-5utr', dest='id_file_5utr', type=isfile, default=None,
+                        help='5d database annotation')
     parser.add_argument('-p', dest='p1_id_file', type=isfile, default=None,
                         help='P1 database annotation')
     parser.add_argument('-vp1', dest='vp1_annotation_file', type=isfile,
@@ -100,7 +117,7 @@ def get_arguments():
                         default=0.0, help='Identity threshold (default 0.0)')
     parser.add_argument('-v', dest='coverage_threshold', type=float,
                         default=0.0, help='Coverage threshold (default 0.0)')
-    parser.add_argument('-s', dest='serotype_association_file', type=isfile, 
+    parser.add_argument('-s', dest='serotype_association_file', type=isfile,
                         required=True, help='Path to the serotype association file.')
     parser.add_argument('-o', dest='output_file', type=str, required=True,
                         help='Output file')
@@ -226,6 +243,7 @@ def get_reads_data(sample_data, list_reads, tag):
         if ext == ".gz" or ext == ".dsrc2":
             name = os.path.splitext(name)[0]
         name = name.replace("_R1","")
+        name = name.replace("_khmer","")
         seq_len_tab_fwd = parse_fastq(list_reads[0][i])
         seq_len_tab_rev = parse_fastq(list_reads[1][i])
         if name in sample_data:
@@ -291,46 +309,91 @@ def associate_vp1(sample_data, blast_vp1_file, vp1_id_dict, tag,
     """Associate vp1 contigs and their annotation
     """
     annotation_list = []
-    for sample in blast_vp1_file:
+    #for sample in blast_vp1_file:
         # Get sample name
-        name,ext = os.path.splitext(os.path.basename(sample))
-        if ext == ".gz":
-            name = os.path.splitext(name)[0]
-        name = name.replace("_vp1","")
-        name = name.replace("_p1","")
-        # Get target length
-        vp1_dict = get_blast(sample)
-        for vp1 in vp1_dict:
-            if tag in sample_data[name]:
-                if vp1 in sample_data[name][tag]:
-                    if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
-                        round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
-                        # Gives id and coverage against vp1 db
-                        # print(vp1_dict)
-                        # print(vp1_id_dict[vp1_dict[vp1][0]])
-                        sample_data[name][tag][vp1] += (
-                            [vp1 + "_" + type_seq, vp1_dict[vp1][0], 
-                             vp1_id_dict[vp1_dict[vp1][0]][0], 
-                             serotype_association_dict[vp1_id_dict[vp1_dict[vp1][0]][0]], 
-                             vp1_dict[vp1][1],
-                             round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)])
-                        annotation_list += [[vp1 + "_" + type_seq, 
-                                             vp1_id_dict[vp1_dict[vp1][0]][0],
-                                             serotype_association_dict[vp1_id_dict[vp1_dict[vp1][0]][0]]]]
-                    else:
-                        sample_data[name][tag][vp1] += [""] * 6
-
+        #name,ext = os.path.splitext(os.path.basename(sample))
+        #if ext == ".gz":
+        #    name = os.path.splitext(name)[0]
+        #print(name)
+        #name = name.replace("_"+type_seq, "")
+    #print(name)
+    # Get target length
+    # UGLY
+    vp1_dict = get_blast(blast_vp1_file)
+    #print(vp1_dict)
+    for vp1 in vp1_dict:
+        name = vp1.split('|')[0]
+        print(vp1)
+        print(sample_data[name])
+        #print(tag)
+        # Is there contigs associated to this sample
+        if tag in sample_data[name]:
+            # does my contig belongs to the list of vp1 contigs
+            if vp1 in sample_data[name][tag]:
+                # Is it a vp1 validated in term of id and length
+                if (round(float(vp1_dict[vp1][1]),1) >= float(identity_threshold) and
+                    round(100.0 * float(vp1_dict[vp1][2])/float(vp1_id_dict[vp1_dict[vp1][0]][1])) >= float(coverage_threshold)):
+                    #print("next step")
+                    # Gives id and coverage against vp1 db
+                    # print(vp1_dict)
+                    # print(vp1_id_dict[vp1_dict[vp1][0]])
+                    # We can add our new sequence
+                    #print(vp1_dict[vp1][0])
+                    #print(vp1_id_dict[vp1_dict[vp1][0]][0])
+                    print(vp1_id_dict[vp1_dict[vp1][0]][0])
+                    sample_data[name][tag][vp1] += (
+                        [vp1 + "_" + type_seq, vp1_dict[vp1][0],
+                         vp1_id_dict[vp1_dict[vp1][0]][0],
+                         serotype_association_dict[vp1_id_dict[vp1_dict[vp1][0]][0]],
+                         vp1_dict[vp1][1],
+                         round(vp1_dict[vp1][2]/float(vp1_id_dict[vp1_dict[vp1][0]][1])*100.0,1)])
+                    annotation_list += [[vp1 + "_" + type_seq,
+                                         vp1_id_dict[vp1_dict[vp1][0]][0],
+                                         serotype_association_dict[vp1_id_dict[vp1_dict[vp1][0]][0]]]]
+                else:
+                    sample_data[name][tag][vp1] += [""] * 6
+    # Element not treated
+    if type_seq != "vp1":
+        for sample_name in sample_data:
+            for vp1 in sample_data[sample_name][tag]:
+                if vp1 not in vp1_dict:
+                    sample_data[sample_name][tag][vp1] += [""] * 6
     return sample_data, annotation_list
 
-def load_vp1_annotation(vp1_annotation_file, sample_data):
+
+def get_element(input_list, name):
+    """Search name in input list
+      Arguments:
+        input_list: List
+        name: Search criteria
+    """
+    # Searching the node with its name
+    i = bisect.bisect_left(input_list, name)
+    # Object has been found
+    if(i != len(input_list) and input_list[i] == name):
+        return True
+    return False
+
+def load_vp1_annotation(vp1_annotation_file, sample_data, tag=None):
     """Load the taxonomical annotation
     """
+    contig_list = []
     try:
         with open(vp1_annotation_file, "rt") as vp1_annotation:
             vp1_annotation_reader = csv.reader(vp1_annotation, delimiter="\t")
             for line in vp1_annotation_reader:
-                if line[0] in sample_data[line[0].split("|")[0]]["vp1_contigs"]:
-                    sample_data[line[0].split("|")[0]]["vp1_contigs"][line[0]] += [line[1], ",".join(line[2:-4]), line[-4], line[-3]]
+                contig = line[0]
+                if tag:
+                    contig = contig.replace("_" + tag, "")
+                contig_list += [contig]
+                sample_name = line[0].split("|")[0]
+                if contig in sample_data[sample_name]["vp1_contigs"]:
+                    sample_data[sample_name]["vp1_contigs"][contig] += [line[1], ",".join(line[2:-4]), line[-4], line[-3]]
+            contig_list.sort()
+            for sample_name in sample_data:
+                for contig in sample_data[sample_name]["vp1_contigs"]:
+                    if not get_element(contig_list, contig):
+                        sample_data[sample_name]["vp1_contigs"][contig] += [""] * 4
     except IOError:
         sys.exit("Error cannot open {0}".format(vp1_annotation_file))
     return sample_data
@@ -412,10 +475,15 @@ def write_result(sample_data, output_file, annotated, count_matrix_file,
     main_info = ["Processed_read_fwd", "Mean_length_proc_fwd",
                  "Processed_read_rev", "Mean_length_proc_rev", "Number_contigs",
                  "Number_of_contigs_with_VP1", "Contigs_with_VP1", "Length_contigs_with_VP1",
-                 "VP1_sequences", "Matched_VP1", "Serotype_VP1", "Specie_VP1", "Identity_VP1",
-                 "Coverage_VP1", "P1_sequences", "Matched_P1", "Serotype_P1", "Specie_P1", "Identity_P1",
-                 "Coverage_P1", "Map_NCBI", "Annotation_NCBI", "Identity_NCBI",
-                 "Coverage_NCBI"]
+                 "VP1_sequences", "Matched_VP1", "Serotype_VP1", "Specie_VP1", "Identity_VP1", "Coverage_VP1",
+                 "P1_sequences", "Matched_P1", "Serotype_P1", "Specie_P1", "Identity_P1", "Coverage_P1",
+                 "5UTR_sequences", "Matched_5UTR", "Serotype_5UTR", "Specie_5UTR", "Identity_5UTR", "Coverage_5UTR",
+                 "3D_sequences", "Matched_3D", "Serotype_3D", "Specie_3D", "Identity_3D", "Coverage_3D",
+                 "Map_Contig_NCBI", "Annotation_contig_NCBI", "Identity_contig_NCBI","Coverage_contig_NCBI",
+                 "Map_VP1_NCBI", "Annotation_VP1_NCBI", "Identity_VP1_NCBI","Coverage_VP1_NCBI",
+                 "Map_P1_NCBI", "Annotation_P1_NCBI", "Identity_P1_NCBI","Coverage_P1_NCBI",
+                 "Map_5UTR_NCBI", "Annotation_5UTR_NCBI", "Identity_5UTR_NCBI","Coverage_5UTR_NCBI",
+                 "Map_3D_NCBI", "Annotation_3D_NCBI", "Identity_3D_NCBI","Coverage_3D_NCBI"]
     if raw_treatment:
         main_info = ["Raw_read_fwd", "Mean_length_raw_fwd", "Raw_read_rev",
                      "Mean_length_raw_rev"] + main_info
@@ -423,10 +491,10 @@ def write_result(sample_data, output_file, annotated, count_matrix_file,
         info += ["ID1", "ID2", "ID3", "ID4"]
     if count_matrix_file:
         main_info += ["Raw_abundance_of_P1", "Relative_abundance_of_P1"]
-    
+
     try:
         with open(output_file, "wt") as output:
-            output_writer = csv.writer(output, delimiter="\t")            
+            output_writer = csv.writer(output, delimiter="\t")
             output_writer.writerow(info + main_info)
             #print(sample_data.keys())
             for sample in sample_data:
@@ -579,43 +647,72 @@ def main():
                                      "vp1_contigs")
         #print("after")
         #print(sample_data["EVB-2_S265"])
-    
+
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Check annotation
     #blast_dir = args.data_dir + os.sep + "blast" + os.sep
-    if args.blast_vp1 and args.vp1_id_file:
+    if args.blast_vp1_file and args.vp1_id_file:
         print("VP1 Annotation")
         vp1_id_dict = load_id(args.vp1_id_file)
-        blast_vp1_file = args.blast_vp1
         #print(blast_vp1_file)
         #print(sample_data["EVB-2_S265"])
-        sample_data, vp1_annotation_list = associate_vp1(sample_data, blast_vp1_file,
+        sample_data, vp1_annotation_list = associate_vp1(sample_data,
+                                    args.blast_vp1_file,
                                     vp1_id_dict, "vp1_contigs",
                                     args.identity_threshold,
                                     args.coverage_threshold,
                                     "vp1", serotype_association_dict)
         # print("after")
         # print(sample_data["EVB-2_S265"])
-    if args.blast_p1 and args.p1_id_file:
+    if args.blast_p1_file and args.p1_id_file:
         print("P1 Annotation")
         p1_id_dict = load_id(args.p1_id_file)
-        blast_p1_file = args.blast_p1
         #print(blast_vp1_file)
         # print(sample_data["EVB-2_S265"])
-        sample_data, p1_annotation_list = associate_vp1(sample_data, blast_p1_file,
+        sample_data, p1_annotation_list = associate_vp1(sample_data,
+                                   args.blast_p1_file,
                                    p1_id_dict, "vp1_contigs",
                                    args.identity_threshold,
                                    args.coverage_threshold,
                                    "p1", serotype_association_dict)
-        #print(sample_data["EVB-2_S265"])
+    if args.blast_5utr_file and args.id_file_5utr:
+        print("5UTR Annotation")
+        id_dict_5utr = load_id(args.id_file_5utr)
+        sample_data, annotation_list_5utr = associate_vp1(sample_data,
+                                   args.blast_5utr_file,
+                                   id_dict_5utr, "vp1_contigs",
+                                   args.identity_threshold,
+                                   args.coverage_threshold,
+                                   "5utr", serotype_association_dict)
+    if args.blast_3d_file and args.id_file_3d:
+        print("3D Annotation")
+        id_dict_3d = load_id(args.id_file_3d)
+        sample_data, annotation_list_3d = associate_vp1(sample_data,
+                                   args.blast_3d_file,
+                                   id_dict_3d, "vp1_contigs",
+                                   args.identity_threshold,
+                                   args.coverage_threshold,
+                                   "3d", serotype_association_dict)
+
+
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
-    # Load vp1 annotation
+    # Load contig annotation
     if args.vp1_annotation_file:
-        # print("avant")
-        # print(sample_data["EVB-2_S265"])
         sample_data = load_vp1_annotation(args.vp1_annotation_file, sample_data)
-        # print("apres")
-        # print(sample_data["EVB-2_S265"])
+    # Load vp1 annotation
+    if args.blastnt_vp1_file:
+        sample_data = load_vp1_annotation(args.blastnt_vp1_file, sample_data, "vp1")
+    # Load p1 annotation
+    if args.blastnt_p1_file:
+        sample_data = load_vp1_annotation(args.blastnt_p1_file, sample_data, "p1")
+    # Load 5utr annotation
+    if args.blastnt_5utr_file:
+        sample_data = load_vp1_annotation(args.blastnt_5utr_file, sample_data, "5utr")
+    # Load 3d annotation
+    if args.blastnt_3d_file:
+        sample_data = load_vp1_annotation(args.blastnt_3d_file, sample_data, "3d")
+        #print("apres")
+        #print(sample_data["EVB-2_S265"])
     print("vp1_contigs abundance")
     #print(sample_data["SEW-SUP-MAD-MAH-CMA-17-004_S74"])
     # Load vp1 abundance

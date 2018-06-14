@@ -69,7 +69,8 @@ def get_arguments():
     parser.add_argument('-o', dest='output_file', type=str, required=True,
                         help='Output file')
     parser.add_argument('-t', dest='tag', type=str, required=True,
-                        choices=["vp1", "p1"], help='Tag (vp1 or p1)')
+                        choices=["vp1", "p1", "3d", "5utr"],
+                        help='Tag (vp1 or p1 or 3d or 5utr)')
     parser.add_argument('-l', dest='vp1_list_file', type=isfile,
                         help="Contig with vp1 list")
     return parser.parse_args()

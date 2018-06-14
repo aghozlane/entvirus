@@ -50,8 +50,13 @@ readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}.{fastq,fastq.dsrc2,fa
                 .map {file -> tuple(file.baseName.replaceAll(".fasta",""),file)}*/
 params.mail = "amine.ghozlane@pasteur.fr"
 params.cpus = 2
+params.cpus_phylogeny = 12
+params.seq3d = "$baseDir/databases/EVABCD_3D_2018_04.fa"
+params.seq5utr = "$baseDir/databases/EVABCD_5UTR_UG52_UC53_2018_04.fa"
 params.vp1 = "$baseDir/databases/SEQ-EV-vp1-2018-03.fasta"
 params.p1 = "$baseDir/databases/SEQ-EV-P1-2018-03.fa"
+params.seqfull = "$baseDir/databases/EV_ABCD_full_2018_04.fa"
+
 params.viral = "$baseDir/databases/viral_catalogue_poltson.fna"
 params.out = "$baseDir/annotation/"
 params.nt = "/local/databases/fasta/nt"
@@ -68,6 +73,8 @@ params.khmer_reads = "${params.out}/khmer_reads"
 params.blastdir = "${params.out}/blast"
 params.mode = "clc"
 params.filter = 1
+params.info3d = "$baseDir/databases/EVABCD_3D_2018_04.tsv"
+params.info5utr = "$baseDir/databases/EVABCD_5UTR_UG52_UC53_2018_04.tsv"
 params.vp1info = "$baseDir/databases/SEQ-EV-vp1-2018-03.tsv"
 params.p1info = "$baseDir/databases/SEQ-EV-P1-2018-03.tsv"
 params.taxadb = "/local/databases/rel/taxadb/current/db/taxadb_full.sqlite"
@@ -76,6 +83,8 @@ params.focus = "no"
 params.readlength = 150
 params.vp1coverage = 50
 params.p1coverage = 50
+params.coverage5utr = 50
+params.coverage3d = 50
 params.abundance = "no"
 params.evalue = 1E-3
 params.filter_matrix = 100
@@ -123,8 +132,8 @@ process filtering {
         dsrc d -t!{params.cpus} !{reads[1]} raw/${pair_id}_R2.fastq
     ;;
     *.gz )
-        pigz -d -c -n !{params.cpus} !{reads[0]} > raw/!{pair_id}_R1.fastq
-        pigz -d -c -n !{params.cpus} !{reads[1]} -c > raw/!{pair_id}_R2.fastq
+        gunzip -c !{reads[0]} > raw/!{pair_id}_R1.fastq
+        gunzip -c !{reads[1]} > raw/!{pair_id}_R2.fastq
     ;;
     *)
         ln -s !{reads[0]} raw/!{pair_id}_R1.fastq
@@ -185,8 +194,8 @@ process khmer {
     output:
     set pair_id, file("khmer/*_R1.fastq"), file("khmer/*_R2.fastq") into khmerChannel
     file("khmer/*.fastq.gz") into khmeroutChannel mode flatten
-    file("khmer/*_R1.fastq.gz") into procr1Channelresume
-    file("khmer/*_R2.fastq.gz") into procr2Channelresume
+    file("khmer/*_khmer_R1.fastq.gz") into procr1Channelresume
+    file("khmer/*_khmer_R2.fastq.gz") into procr2Channelresume
 
     shell:
     """
@@ -201,8 +210,8 @@ process khmer {
         --output-single output.dn.se
     split-paired-reads.py output.dn.pe -1 khmer/!{pair_id}_khmer_R1.fastq \
         -2 khmer/!{pair_id}_khmer_R2.fastq
-    pigz -c -p !{params.cpus} khmer/!{pair_id}_khmer_R1.fastq >  khmer/!{pair_id}_R1.fastq.gz
-    pigz -c -p !{params.cpus} khmer/!{pair_id}_khmer_R2.fastq > khmer/!{pair_id}_R2.fastq.gz
+    pigz -c -p !{params.cpus} khmer/!{pair_id}_khmer_R1.fastq >  khmer/!{pair_id}_khmer_R1.fastq.gz
+    pigz -c -p !{params.cpus} khmer/!{pair_id}_khmer_R2.fastq > khmer/!{pair_id}_khmer_R2.fastq.gz
     """
 }
 
@@ -244,7 +253,6 @@ process assembly {
     output:
     set pair_id, file("assembly/*_{clc,megahit,metacompass,ray,spades}.fasta") into contigsChannel
     file("assembly/*_{clc,megahit,metacompass,ray,spades}.fasta") into contigsChannelresume
-    file("assembly/*_{clc,megahit,metacompass,ray,spades}.fasta") into contigsChannelresumeabund
 
     shell:
     """
@@ -303,18 +311,32 @@ process blast {
     output:
     //file("log.txt") into logChannel
     set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel
-    set contigsID, file(contigs), file("blast/*_p1.tsv") into p1blastChannel
-    file("blast/*_vp1.tsv") into vp1blastChannelresume
-    file("blast/*_p1.tsv") into p1blastChannelresume
+    set contigsID, file(contigs), file("blast/*_p1.tsv"), file("blast/*_5utr.tsv"), file("blast/*_3d.tsv") into otherblastChannel
+    //file("blast/*_5utr.tsv") into blast5utrChannelresume
+    //file("blast/*_3d.tsv") into blast3dChannelresume
+    //file("blast/*_vp1.tsv") into vp1blastChannelresume
+    //file("blast/*_p1.tsv") into p1blastChannelresume
     set contigsID, file("blast/*_nt.tsv") into blastChannel
     file("blast/*.tsv") into allblastChannel mode flatten
+    file("blast/*_p1.tsv") into p1bisblastChannel
+    file("blast/*_vp1.tsv") into vp1bisblastChannel
+    file("blast/*_5utr.tsv") into blast5utrbisChannel
+    file("blast/*_3d.tsv") into blast3dbisChannel
 
     shell:
     """
     #!/usr/bin/env bash
     mkdir blast
-    blastn -query !{contigs}  -db !{params.vp1}  -num_threads !{params.cpus} \
+    blastn -query !{contigs}  -db !{params.vp1} -num_threads !{params.cpus} \
            -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 \
+           -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
+           -task blastn -evalue !{params.evalue} -max_hsps 1
+    blastn -query !{contigs}  -db !{params.seq5utr} -num_threads !{params.cpus} \
+           -out blast/!{contigsID}_5utr.tsv -max_target_seqs 1 \
+           -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
+           -task blastn -evalue !{params.evalue} -max_hsps 1
+    blastn -query !{contigs}  -db !{params.seq3d} -num_threads !{params.cpus} \
+           -out blast/!{contigsID}_3d.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
            -task blastn -evalue !{params.evalue} -max_hsps 1
     blastn -query !{contigs} -db !{params.p1} -num_threads !{params.cpus} \
@@ -328,7 +350,21 @@ process blast {
     """
 }
 
+/*p1blastChannelresume = Channel.create()
+vp1blastChannelresume = Channel.create()
+blast5utrChannelresume = Channel.create()
+blast3dChannelresume = Channel.create()*/
 allblastChannel.subscribe { it.copyTo(blastDir) }
+p1bisblastChannel.collectFile(name: 'p1blast.tsv')
+                 .set{ p1blastChannelresume }
+vp1bisblastChannel.collectFile(name: 'vp1blast.tsv')
+                  .set{ vp1blastChannelresume }
+blast5utrbisChannel.collectFile(name: '5utrblast.tsv')
+                  .set{ blast5utrChannelresume }
+blast3dbisChannel.collectFile(name: '3dblast.tsv')
+                 .set { blast3dChannelresume }
+
+
 
 // Extract vp1 sequences
 process vp1 {
@@ -339,9 +375,11 @@ process vp1 {
 
     output:
     file("vp1/*_vp1.fasta") into vp1Channel
+    set contigsID,file("vp1/*_vp1.fasta") into vp1fastaChannel
     file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannel
     file("vp1_contigs/*_vp1_contigs.fasta") into vp1contigsChannelresume
     file("vp1/*_vp1_list.txt") into vp1setChannel
+
     shell:
     """
     #!/usr/bin/env bash
@@ -375,21 +413,81 @@ vp1Channel.collectFile(name: 'vp1sequences.fasta')
           .into { vp1tosave ; vp1fasta}
 vp1tosave.subscribe { it.copyTo(myDir) }
 
-process p1 {
+process blast_vp1 {
     publishDir "$myDir", mode: 'copy'
-    cache 'deep'
+    memory "5G"
+    cpus params.cpus
 
     input:
-    set contigsID, file(contigs), file(p1blast) from p1blastChannel
-    each file(vp1list) from vp1listChannel
+    set contigsID, file(vp1fasta) from vp1fastaChannel
 
     output:
-    file("p1/*_p1.fasta") into p1Channel
+    set contigsID, file("blast/*_nt_vp1.tsv") into blastvp1ntChannel
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir p1
+    mkdir blast
+    blastn -query !{vp1fasta}  -db !{params.nt}  -num_threads !{params.cpus} \
+           -out blast/!{contigsID}_nt_vp1.tsv -evalue !{params.evalue}\
+           -max_target_seqs 1 -max_hsps 1 \
+           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
+    """
+}
+
+process annotation_vp1 {
+    //clusterOptions='--qos=normal -p common'
+    publishDir "$myDir", mode: 'copy'
+    //memory "10G"
+
+    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
+    module = 'Python/3.6.0:taxadb/0.6.0'
+
+    input:
+    set contigsID, file(vp1_blast) from blastvp1ntChannel
+
+    output:
+    file("annotation/*_annotation_vp1.tsv") into vp1finalChannel
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir annotation
+    nlines=\$(wc -l !{vp1_blast}|cut -f 1 -d ' ')
+    if [ \${nlines} -gt '0' ]
+    then
+        # Get the taxonomy
+        get_taxonomy3.py -i !{vp1_blast} \
+        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_vp1.tsv
+        ExtractNCBIDB2.py -f !{vp1_blast} \
+        -g annotation/!{contigsID}_taxonomy_vp1.tsv -nb !{params.numberBestannotation} \
+        -o annotation/!{vp1_blast.baseName}_annotation_vp1.tsv
+    else
+        touch annotation/!{vp1_blast.baseName}_annotation_vp1.tsv
+    fi
+    """
+}
+vp1finalChannelresume = vp1finalChannel.collectFile(name:"vp1combined.tsv")
+
+
+process other_region {
+    publishDir "$myDir", mode: 'copy'
+    cache 'deep'
+
+    input:
+    set contigsID, file(contigs), file(p1blast), file(blast5utr), file(blast3d)  from otherblastChannel
+    each file(vp1list) from vp1listChannel
+
+    output:
+    file("p1/*_p1.fasta") into p1Channel
+    file("5utr/*_5utr.fasta") into fasta5utrChannel
+    file("3d/*_3d.fasta") into fasta3dChannel
+    set contigsID, file("p1/*_p1.fasta"), file("5utr/*_5utr.fasta"), file("3d/*_3d.fasta") into otherfastaChannel
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir p1 5utr 3d
     nlines=\$(wc -l !{p1blast} |cut -f 1 -d ' ')
     if [ \${nlines} -gt '0' ]
     then
@@ -399,13 +497,74 @@ process p1 {
             -c !{params.p1coverage} -t p1 -l !{vp1list}
     else
         touch p1/!{contigsID}_p1.fasta
+    fi
+    nlines=\$(wc -l !{blast5utr} |cut -f 1 -d ' ')
+    if [ \${nlines} -gt '0' ]
+    then
+       # Extract 5UTR sequence
+       extract_sequence.py -q !{contigs} -b !{blast5utr} \
+            -o 5utr/!{contigsID}_5utr.fasta -a !{params.info5utr} \
+            -c !{params.coverage5utr} -t 5utr -l !{vp1list}
+    else
+        touch 5utr/!{contigsID}_5utr.fasta
    fi
+   nlines=\$(wc -l !{blast3d} |cut -f 1 -d ' ')
+    if [ \${nlines} -gt '0' ]
+    then
+       # Extract 3D sequence
+       extract_sequence.py -q !{contigs} -b !{blast3d} \
+            -o 3d/!{contigsID}_3d.fasta -a !{params.info3d} \
+            -c !{params.coverage3d} -t 3d -l !{vp1list}
+    else
+        touch 3d/!{contigsID}_3d.fasta
+    fi
    """
 }
 
 p1Channel.collectFile(name: 'p1sequences.fasta')
          .into{ p1mbma ; p1tosave ; p1fasta }
 p1tosave.subscribe { it.copyTo(myDir) }
+
+fasta5utrChannel.collectFile(name: '5utrsequences.fasta')
+                .into { fna5utr ; tosave5utr }
+tosave5utr.subscribe { it.copyTo(myDir) }
+
+fasta3dChannel.collectFile(name:'3dsequences.fasta')
+              .into { fna3d ; tosave3d }
+tosave3d.subscribe { it.copyTo(myDir) }
+process blast_other {
+    publishDir "$myDir", mode: 'copy'
+    memory "5G"
+    cpus params.cpus
+    cache 'deep'
+
+    input:
+    set contigsID, file(p1blast), file(blast5utr), file(blast3d) from otherfastaChannel
+
+    output:
+    //file("blast/*_nt_p1.tsv"), file("blast/*_nt_5utr.tsv"), file("blast/*_nt_3d.tsv") into otherblastChannelresume
+    //set file("blast/*_nt_p1.tsv"), file("blast/*_nt_5utr.tsv"), file("blast/*_nt_3d.tsv") into otherblastChannelresume
+    set contigsID, file("blast/*_nt_p1.tsv"), file("blast/*_nt_5utr.tsv"), file("blast/*_nt_3d.tsv") into otherblastntChannel
+    //file("blast/*.tsv") into otherblastncbiChannel
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir blast
+    blastn -query !{p1blast}  -db !{params.nt}  -num_threads !{params.cpus} \
+           -out blast/!{contigsID}_nt_p1.tsv -evalue !{params.evalue}\
+           -max_target_seqs 1 -max_hsps 1 \
+           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
+    blastn -query !{blast5utr}  -db !{params.nt}  -num_threads !{params.cpus} \
+           -out blast/!{contigsID}_nt_5utr.tsv -evalue !{params.evalue}\
+           -max_target_seqs 1 -max_hsps 1 \
+           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
+    blastn -query !{blast3d}  -db !{params.nt}  -num_threads !{params.cpus} \
+           -out blast/!{contigsID}_nt_3d.tsv -evalue !{params.evalue}\
+           -max_target_seqs 1 -max_hsps 1 \
+           -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
+    """
+}
 
 /*process vp1_vsearch {
     publishDir "$myDir", mode: 'copy'
@@ -471,6 +630,67 @@ process annotation {
     fi
     """
 }
+
+process annotation_other {
+    publishDir "$myDir", mode: 'copy'
+    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
+    module = 'Python/3.6.0:taxadb/0.6.0'
+
+    input:
+    set contigsID, file(blast_nt_p1), file(blast_nt_5utr), file(blast_nt_3d) from otherblastntChannel
+
+    output:
+    file("annotation/*_p1_annotation.tsv") into p1finalChannel
+    file("annotation/*_5utr_annotation.tsv") into final5utrChannel
+    file("annotation/*_3d_annotation.tsv") into final3dChannel
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir annotation
+    nlines=\$(wc -l < !{blast_nt_p1})
+    if [ \${nlines} -gt '0' ]
+    then
+        # Get the taxonomy
+        get_taxonomy3.py -i !{blast_nt_p1} \
+        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_p1.tsv
+        ExtractNCBIDB2.py -f !{blast_nt_p1} \
+        -g annotation/!{contigsID}_taxonomy_p1.tsv -nb !{params.numberBestannotation} \
+        -o annotation/!{blast_nt_p1.baseName}_annotation.tsv
+    else
+        touch annotation/!{blast_nt_p1.baseName}_annotation.tsv
+    fi
+    nlines=\$(wc -l < !{blast_nt_5utr})
+    if [ \${nlines} -gt '0' ]
+    then
+        # Get the taxonomy
+        get_taxonomy3.py -i !{blast_nt_5utr} \
+        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_5utr.tsv
+        ExtractNCBIDB2.py -f !{blast_nt_5utr} \
+        -g annotation/!{contigsID}_taxonomy_5utr.tsv -nb !{params.numberBestannotation} \
+        -o annotation/!{blast_nt_5utr.baseName}_annotation.tsv
+    else
+        touch annotation/!{blast_nt_5utr.baseName}_annotation.tsv
+    fi
+    nlines=\$(wc -l < !{blast_nt_3d})
+    if [ \${nlines} -gt '0' ]
+    then
+        # Get the taxonomy
+        get_taxonomy3.py -i !{blast_nt_3d} \
+        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_3d.tsv
+        ExtractNCBIDB2.py -f !{blast_nt_3d} \
+        -g annotation/!{contigsID}_taxonomy_3d.tsv -nb !{params.numberBestannotation} \
+        -o annotation/!{blast_nt_3d.baseName}_annotation.tsv
+    else
+        touch annotation/!{blast_nt_3d.baseName}_annotation.tsv
+    fi
+    """
+
+}
+
+p1finalChannelresume = p1finalChannel.collectFile(name: 'p1combined.tsv')
+final5utrChannelresume = final5utrChannel.collectFile(name: 'combined5utr.tsv')
+final3dChannelresume = final3dChannel.collectFile(name: 'combined3d.tsv')
 
 combineChannel = annotationChannel.collectFile(name: 'combined.tsv')
 //vp1contigs_vsearch = vp1contigsvChannel.collectFile(name: 'vp1contigs_vsearch.fasta')
@@ -553,8 +773,8 @@ process combine_annotation {
 
     output:
     file("contigs_annotation.tsv") into finalChannel
-    file("vp1contigs_annotation.tsv") into vp1finalChannel
-    file("vp1contigs_annotation.tsv") into vp1finalChannelabundance
+    file("vp1contigs_annotation.tsv") into vp1contigsfinalChannel
+    file("vp1contigs_annotation.tsv") into vp1contigsfinalChannelabundance
     file(vp1contigs_fasta) into vp1contigsfasta
 
     shell:
@@ -607,9 +827,15 @@ if ( params.abundance == "no") {
         file(procr2) from procr2Channelresume.toList()
         file(contigs) from contigsChannelresume.toList()
         file(vp1contigs) from vp1contigsChannelresume.toList()
-        file(vp1blast) from vp1blastChannelresume.toList()
-        file(p1blast) from p1blastChannelresume.toList()
-        file(vp1contigs_annot) from vp1finalChannel
+        file(vp1blast) from vp1blastChannelresume //.toList()
+        file(p1blast) from p1blastChannelresume //.toList()
+        file(blast3d) from blast3dChannelresume //.toList()
+        file(blast5utr) from blast5utrChannelresume //.toList()
+        file(seqvp1_annot) from vp1finalChannelresume
+        file(seqp1_annot) from p1finalChannelresume
+        file(seq5utr_annot) from final5utrChannelresume
+        file(seq3d_annot) from final3dChannelresume
+        file(vp1contigs_annot) from vp1contigsfinalChannel
 
         output:
         file("result_summary.tsv") into resultChannel
@@ -622,7 +848,12 @@ if ( params.abundance == "no") {
         extract_result2.py -r1 !{rawr1} -r2 !{rawr2} -pr1 !{procr1} -pr2 !{procr2} -a !{params.vp1info}\
                -vp1 !{vp1contigs_annot} -o result_summary.tsv \
                -l !{params.annotated} -v !{params.vp1coverage}\
-               -p !{params.p1info} -c !{contigs} -vp1c !{vp1contigs} -bvp1 !{vp1blast} -bp1 !{p1blast}\
+               -p !{params.p1info} -c !{contigs} -vp1c !{vp1contigs} \
+               -3d !{params.info3d} -5utr !{params.info5utr} \
+               -bvp1 !{vp1blast} -bp1 !{p1blast} \
+               -b5utr !{blast5utr} -b3d !{blast3d} \
+               -bntvp1 !{seqvp1_annot} -bntp1 !{seqp1_annot} \
+               -bnt5utr !{seq5utr_annot} -bnt3d !{seq3d_annot} \
                -s !{params.ent_serotype} -oc occurence/count.tsv -oa occurence/annotation.tsv
         """
     }
@@ -639,9 +870,15 @@ else{
         file(procr2) from procr2Channelresume.toList()
         file(contigs) from contigsChannelresume.toList()
         file(vp1contigs) from vp1contigsChannelresume.toList()
-        file(vp1blast) from vp1blastChannelresume.toList()
-        file(p1blast) from p1blastChannelresume.toList()
-        file(vp1contigs_annot) from vp1finalChannel
+        file(vp1blast) from vp1blastChannelresume
+        file(p1blast) from p1blastChannelresume
+        file(blast3d) from blast3dChannelresume
+        file(blast5utr) from blast5utrChannelresume
+        file(seqvp1_annot) from vp1finalChannelresume
+        file(seqp1_annot) from p1finalChannelresume
+        file(seq5utr_annot) from final5utrChannelresume
+        file(seq3d_annot) from final3dChannelresume
+        file(vp1contigs_annot) from vp1contigsfinalChannel
         file(countmatrix) from countChannel
 
         output:
@@ -656,7 +893,12 @@ else{
         extract_result2.py -r1 !{rawr1} -r2 !{rawr2} -pr1 !{procr1} -pr2 !{procr2} -a !{params.vp1info}\
             -vp1 !{vp1contigs_annot} -o result_summary.tsv \
             -n !{countmatrix} -l !{params.annotated} -v !{params.vp1coverage}\
-            -p !{params.p1info} -c !{contigs} -vp1c !{vp1contigs} -bvp1 !{vp1blast} -bp1 !{p1blast}\
+            -p !{params.p1info} -c !{contigs} -vp1c !{vp1contigs}\
+            -3d !{params.info3d} -5utr !{params.info5utr} \
+            -bvp1 !{vp1blast} -bp1 !{p1blast}\
+            -b5utr !{blast5utr} -b3d !{blast3d} \
+            -bntvp1 !{seqvp1_annot} -bntp1 !{seqp1_annot} \
+            -bnt5utr !{seq5utr_annot} -bnt3d !{seq3d_annot} \
             -s !{params.ent_serotype} -os abundance/annotation.tsv -oc occurence/count.tsv -oa occurence/annotation.tsv
         """
     }
@@ -675,21 +917,32 @@ process enterovirus_classification {
     file vp1contigsfasta
     file p1fasta
     file vp1fasta
+    file fna5utr
+    file fna3d
     //set key, fasta from fastachan
 
     output:
     //set "!{fasta.baseName}", file("*.fasta") into fastaserotype
-    file("entovirus_classified/*.fasta") into fastaclassified mode flatten
+    //file("enterovirus_classified/*.fasta") into fastaclassified mode flatten
+    //file("enterovirus_classified/*.fasta") into classified mode flatten
+    file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}.fasta") into fastaclassified mode flatten
+    set file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_rooted.fasta"), file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_association.txt") into fastaclassified_rooted mode flatten
+    file("phylogeny/*.txt") into itolChannel mode flatten
 
     shell:
     """
-    mkdir entovirus_classified/
-    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o entovirus_classified/ -t "Contigs_with_VP1"
-    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o entovirus_classified/ -t "P1_sequences"
-    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o entovirus_classified/ -t "VP1_sequences"
-    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o entovirus_classified/ -t "Contigs_with_VP1" -r !{params.root_seq_full}
-    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o entovirus_classified/ -t "P1_sequences" -r !{params.root_seq_p1}
-    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  entovirus_classified/ -t "VP1_sequences" -r !{params.root_seq_vp1}
+    mkdir enterovirus_classified/ phylogeny/
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -itol phylogeny/
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -itol phylogeny/
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o enterovirus_classified/ -t "VP1_sequences" -itol phylogeny/
+    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -itol phylogeny/
+    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -itol phylogeny/
+    # ROOTING trees with an other class
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -r !{params.seqfull} -itol phylogeny/ -e !{params.ent_serotype}
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -r !{params.p1} -itol phylogeny/ -e !{params.ent_serotype}
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  enterovirus_classified/ -t "VP1_sequences" -r !{params.vp1} -itol phylogeny/ -e !{params.ent_serotype}
+    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -r !{params.seq5utr} -itol phylogeny/ -e !{params.ent_serotype}
+    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -r !{params.seq3d} -itol phylogeny/ -e !{params.ent_serotype}
     """
 }
 
@@ -704,7 +957,7 @@ process multiple_alignment {
 
     output:
     //set fastaID, file("msa/*.ali") into msaserotype
-    file("msa/*.ali") into msaserotype mode flatten
+    file("msa/*.ali") optional true into msadata //mode flatten
 
     shell:
     """
@@ -717,11 +970,36 @@ process multiple_alignment {
     elif [ "\${nseq}" -gt '1' ]
     then
         mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > msa/!{fasta.baseName}.ali
-    else
-        touch msa/!{fasta.baseName}.ali
     fi
     """
+}
 
+process multiple_alignment_rooted {
+    publishDir "$myDir", mode: 'copy', pattern: 'msa/*.ali'
+    cpus params.cpus_phylogeny
+    cache 'deep'
+
+    input:
+    //set fastaID, file(fasta) from fastaserotype
+    set file(fasta), file(association) from fastaclassified_rooted
+
+    output:
+    //set fastaID, file("msa/*.ali") into msaserotype
+    set file("msa/*.ali"), file(association) optional true into msadata_rooted //mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir -p msa
+    nseq=\$( grep -c "^>" !{fasta} )
+    if [ "\${nseq}" -ge '200' ]
+    then
+        mafft --retree 1 --thread !{params.cpus} !{fasta} > msa/!{fasta.baseName}.ali
+    elif [ "\${nseq}" -gt '1' ]
+    then
+        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > msa/!{fasta.baseName}.ali
+    fi
+    """
 }
 
 process filtering_alignment {
@@ -730,55 +1008,139 @@ process filtering_alignment {
 
     input:
     //set fastaID, file(msa) from msaserotype
-    file(msa) from msaserotype
+    file(msa) from msadata
 
     output:
     //set fastaID, file("*_bmge.ali") into msafiltserotype
-    file("msa/*_bmge.ali") into msafiltserotype mode flatten
+    file("msa/*_bmge.ali") optional true into msadatafilt //mode flatten
+    file("msa/*_bmge_large.ali") optional true into msalargedatafilt
 
     shell:
     """
     #!/usr/bin/env bash
     mkdir -p msa
     nseq=\$( grep -c "^>" !{msa} )
-    if [ "\${nseq}" -gt '1' ]
+    if [ "\${nseq}" -ge '200' ]
+    then
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge_large.ali
+    elif [ "\${nseq}" -gt '3' ]
     then
         BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge.ali
-    else
-        touch msa/!{msa.baseName}_bmge.ali
     fi
     """
+}
 
+process filtering_alignment_rooted {
+    publishDir "$myDir", mode: 'copy', pattern: 'msa/*.ali'
+    cache 'deep'
+
+    input:
+    //set fastaID, file(msa) from msaserotype
+    set file(msa), file(association) from msadata_rooted
+
+    output:
+    //set fastaID, file("*_bmge.ali") into msafiltserotype
+    set file("msa/*_bmge.ali"), file(association) optional true into msadatafilt_rooted //mode flatten
+    set file("msa/*_bmge_large.ali"), file(association) optional true into msalargedatafilt_rooted
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir -p msa
+    nseq=\$( grep -c "^>" !{msa} )
+    if [ "\${nseq}" -ge '200' ]
+    then
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge_large.ali
+    elif [ "\${nseq}" -gt '3' ]
+    then
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge.ali
+    fi
+    """
 }
 
 process phylogeny {
     publishDir "$myDir", mode: 'copy'
-    cpus params.cpus
     cache 'deep'
 
     input:
     //set fastaID, file(msafilt) from msafiltserotype
-    file(msafilt) from msafiltserotype
+    file(msafilt) from msadatafilt
 
     output:
-    file("phylogeny/*.treefile") into phylogenyserotype mode flatten
+    file("phylogeny/*.treefile") into phylogenyserotype //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
     mkdir phylogeny
-    nseq=\$( grep -c "^>" !{msafilt} )
-    if [ "\${nseq}" -gt '200' ]
-    then
-        iqtree -m GTR+I+G4 -nt !{params.cpus} -s !{msafilt}
-        mv *.treefile phylogeny/
-    elif [ "\${nseq}" -gt '1' ]
-    then
-        iqtree -m GTR+I+G4 -s !{msafilt}
-        mv *.treefile phylogeny/
-    else
-        touch phylogeny/!{msafilt.baseName}.treefile
-    fi
+    iqtree -m GTR+I+G4 -s !{msafilt}
+    mv *.treefile phylogeny/
+    """
+}
+
+process phylogeny_large {
+    publishDir "$myDir", mode: 'copy'
+    cpus params.cpus_phylogeny
+    cache 'deep'
+
+    input:
+    //set fastaID, file(msafilt) from msafiltserotype
+    file(msafilt) from msalargedatafilt
+
+    output:
+    file("phylogeny/*.treefile") into phylogenyserotype_large //mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir phylogeny
+    iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt}
+    mv *.treefile phylogeny/
+    """
+}
+
+process phylogeny_rooted {
+    publishDir "$myDir", mode: 'copy'
+    cache 'deep'
+
+    input:
+    //set fastaID, file(msafilt) from msafiltserotype
+    set file(msafilt), file(association) from msadatafilt_rooted
+
+    output:
+    file("phylogeny/*_final.treefile") into phylogenyserotype_rooted //mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir phylogeny
+    iqtree -m GTR+I+G4 -s !{msafilt}
+    name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
+    gotree reroot outgroup -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
+    mv *.treefile phylogeny/
+    """
+}
+
+process phylogeny_rooted_large {
+    publishDir "$myDir", mode: 'copy'
+    cpus params.cpus_phylogeny
+    cache 'deep'
+
+    input:
+    //set fastaID, file(msafilt) from msafiltserotype
+    set file(msafilt), file(association) from msalargedatafilt_rooted
+
+    output:
+    file("phylogeny/*.treefile") into phylogenyserotype_large_rooted //mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir phylogeny
+    iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt}
+    name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
+    gotree reroot outgroup -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
+    mv *.treefile phylogeny/
     """
 }
 

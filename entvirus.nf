@@ -136,8 +136,8 @@ process filtering {
         gunzip -c !{reads[1]} > raw/!{pair_id}_R2.fastq
     ;;
     *)
-        ln -s !{reads[0]} raw/!{pair_id}_R1.fastq
-        ln -s !{reads[1]} raw/!{pair_id}_R2.fastq
+        mv !{reads[0]} raw/!{pair_id}_R1.fastq
+        mv !{reads[1]} raw/!{pair_id}_R2.fastq
     ;;
     esac
     mkdir unmapped

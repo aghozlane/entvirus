@@ -143,9 +143,11 @@ process filtering {
     mkdir unmapped
     if [ !{params.focus} ==  "no" ]
     then
-        bowtie2 -q -N !{params.mismatch} -1 raw/!{pair_id}_R1.fastq -2 raw/!{pair_id}_R2.fastq \
-                -x !{params.contaminant} --un-conc unmapped/ -S /dev/null \
-                -p !{params.cpus} --very-sensitive-local
+        cp -L raw/!{pair_id}_R1.fastq unmapped/!{pair_id}.1
+        cp -L raw/!{pair_id}_R2.fastq unmapped/!{pair_id}.2
+        #bowtie2 -q -N !{params.mismatch} -1 raw/!{pair_id}_R1.fastq -2 raw/!{pair_id}_R2.fastq \
+        #        -x !{params.contaminant} --un-conc unmapped/ -S /dev/null \
+        #        -p !{params.cpus} --very-sensitive-local
     else
         bowtie2 -q -N !{params.mismatch} -1 raw/!{pair_id}_R1.fastq -2 raw/!{pair_id}_R2.fastq \
                 -x !{params.viral} --al-conc unmapped/ -S /dev/null \

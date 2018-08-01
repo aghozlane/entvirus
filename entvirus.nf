@@ -1008,7 +1008,7 @@ process multiple_alignment_rooted {
 
     output:
     //set fastaID, file("msa/*.ali") into msaserotype
-    set file("*.ali"), file(association) optional true into msadata_rooted //mode flatten
+    set file("*.ali"), file(association) optional true into msadata_rooted mode flatten
 
     shell:
     """
@@ -1061,8 +1061,8 @@ process filtering_alignment_rooted {
 
     output:
     //set fastaID, file("*_bmge.ali") into msafiltserotype
-    set file("*_bmge.ali"), file(association) optional true into msadatafilt_rooted //mode flatten
-    set file("*_bmge_large.ali"), file(association) optional true into msalargedatafilt_rooted
+    set file("*_bmge.ali"), file(association) optional true into msadatafilt_rooted mode flatten
+    set file("*_bmge_large.ali"), file(association) optional true into msalargedatafilt_rooted mode flatten
 
     shell:
     """

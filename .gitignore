@@ -3,8 +3,14 @@
 nextflow_slurm*
 nextflow_sge*
 .nfs*
+dag*
 old
 img/entsoft.simg
 bin/MetaCompass/
 bin/gatb-minia-pipeline/
 bin/kmer-code-2013-trunk/
+bin/extract_result.py
+databases/EV79-USA10384-VP1-AY843297
+entvirus_old.nf
+test.csv
+test.nf

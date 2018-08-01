@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -86,13 +86,15 @@ def get_arguments():
     parser.add_argument('-itol', dest='itol_dir',  type=isdir,
                         default=os.curdir + os.sep,
                         help='Path to itol_label file.')
+    parser.add_argument('-c', dest='incomplete', action='store_false',
+                        default=True, help='Consider only complete sequence')
     return parser.parse_args()
 
 def get_unique(seq):
     # Not order preserving
     return {}.fromkeys(seq).keys()
 
-def get_query(query_file, tag):
+def get_query(query_file, tag, incomplete):
     """Load resume file
     """
     serotype_list = []
@@ -104,23 +106,27 @@ def get_query(query_file, tag):
             query_reader = csv.reader(query, delimiter="\t")
             header = query_reader.next()
             interest_seq_posit = header.index(tag)
+            print(header)
             interest_serotype_posit = header.index("Serotype_VP1")
             interest_specie_posit = header.index("Specie_VP1")
+            matched_5utr = header.index('Matched_5UTR')
+            matched_3d = header.index('Matched_3D')
             for line in query_reader:
                 line_len = len(line)
                 #print(line)
                 if line_len > interest_seq_posit and line_len > interest_serotype_posit:
                     if line[interest_seq_posit] != "":
-                        #print(line)
                         assert(line[interest_seq_posit] not in query_dict)
-                        query_dict[line[interest_seq_posit]] = [
-                            line[interest_serotype_posit].upper(),
-                            line[interest_specie_posit].upper()]
-                        # Serotype and specie
-                        classify_list += [line[interest_serotype_posit].upper(),
+                        if line[matched_5utr] != "" and line[matched_3d] != "" or incomplete:
+                            print(line)
+                            query_dict[line[interest_seq_posit]] = [
+                             line[interest_serotype_posit].upper(),
+                             line[interest_specie_posit].upper()]
+                            # Serotype and specie
+                            classify_list += [line[interest_serotype_posit].upper(),
                                           line[interest_specie_posit].upper()]
-                        classify_specie_list += [line[interest_specie_posit].upper()]
-                        serotype_list += [line[interest_serotype_posit].upper()]
+                            classify_specie_list += [line[interest_specie_posit].upper()]
+                            serotype_list += [line[interest_serotype_posit].upper()]
             classify_list.sort()
             classify_list = get_unique(classify_list)
             classify_specie_list.sort()
@@ -131,6 +137,14 @@ def get_query(query_file, tag):
         print(line[interest_seq_posit])
         print(query_dict)
         sys.exit("Strange value in {0}".format(query_file))
+    print("here")
+    print(query_dict)
+    print("classify_list")
+    print(classify_list)
+    print("classify specie list")
+    print(classify_specie_list)
+    print("serotype")
+    print(serotype_list)
     return query_dict, classify_list, classify_specie_list, serotype_list
 
 
@@ -143,7 +157,8 @@ def get_sequence(query_dict, fasta_file):
         with open(fasta_file, "rt") as target:
             for line in target:
                 if title and line[0] != ">":
-                    result[title] += line[0:].strip().replace("\n", "").replace("\r", "")
+                    if title in result:
+                        result[title] += line[0:].strip().replace("\n", "").replace("\r", "")
                 if line.startswith(">"):
                     if len(result) == len(query_dict):
                         break
@@ -263,8 +278,8 @@ def write_itol_tree_color(results, sequence_data, query_dict, classify_list, ser
     #if ref_seq:
     #    color_list = list(red.range_to(blue, len(serotype_list) + 1))
     #else:
-    color_list = list(red.range_to(blue, len(serotype_list)))
     try:
+        color_list = list(red.range_to(blue, len(serotype_list)))
         for clas in classify_list:
             output_file = results + os.sep + clas + "_" + tag + "_TREE_COLORS.txt"
             #if ref_seq:
@@ -286,6 +301,8 @@ def write_itol_tree_color(results, sequence_data, query_dict, classify_list, ser
             output.close()
     except IOError:
         sys.exit("Error cannot open {0}".format(output_file))
+    except ValueError:
+        pass
 
 
 def load_spe_sero(ent_serotype_file):
@@ -305,6 +322,7 @@ def load_spe_sero(ent_serotype_file):
     except AssertionError:
         sys.exit("Error nothing read from {0}".format(ent_serotype_file))
     return ent_spe_sero
+
 
 def get_template_sequence(template_seq_file, ent_spe_sero):
     """Load template sequence
@@ -329,6 +347,7 @@ def get_template_sequence(template_seq_file, ent_spe_sero):
         sys.exit("Error cannot open {0}".format(template_seq_file))
     return ref_seq
 
+
 def main():
     """Reclassify sequence and prepare phylogeny
     """
@@ -339,7 +358,10 @@ def main():
     args = get_arguments()
     # Load query elements
     print("Load resume file")
-    query_dict, classify_list, classify_specie_list, serotype_list = get_query(args.resume_file, args.tag)
+    (query_dict, classify_list,
+     classify_specie_list, serotype_list) = get_query(args.resume_file,
+                                                      args.tag,
+                                                      args.incomplete)
     # Load specie association
     if args.ent_serotype_file and args.template_seq_file:
         # Load enterovirus serotype

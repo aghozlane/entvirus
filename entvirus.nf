@@ -231,11 +231,11 @@ process assembly {
         clusterOptions='--qos=clcbio -p clcbio'
         cpus params.cpus
     }
-    else if(params.mode == "metacompass"){
+    /*else if(params.mode == "metacompass"){
         beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules;export PATH=/pasteur/projets/policy01/Matrix/metagenomics/entvirus/bin/kmer-code-2013-trunk/Linux-amd64/bin/:$PATH'
         module = 'Python/3.6.0:samtools/1.3:snakemake/3.5.4:bowtie2/2.2.9'
         cpus params.cpus
-    }
+    }*/
     else if(params.mode == "ray"){
         cpus 1
     }
@@ -442,8 +442,8 @@ process annotation_vp1 {
     publishDir "$myDir", mode: 'copy'
     //memory "10G"
 
-    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
-    module = 'Python/3.6.0:taxadb/0.6.0'
+    //beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
+    //module = 'Python/3.6.0:taxadb/0.6.0'
 
     input:
     set contigsID, file(vp1_blast) from blastvp1ntChannel
@@ -603,8 +603,8 @@ process annotation {
     publishDir "$myDir", mode: 'copy'
     //memory "10G"
 
-    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
-    module = 'Python/3.6.0:taxadb/0.6.0'
+    //beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
+    //module = 'Python/3.6.0:taxadb/0.6.0'
 
     input:
     set contigsID, file(ncbi_annotation) from blastChannel
@@ -635,8 +635,8 @@ process annotation {
 
 process annotation_other {
     publishDir "$myDir", mode: 'copy'
-    beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
-    module = 'Python/3.6.0:taxadb/0.6.0'
+    //beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
+    //module = 'Python/3.6.0:taxadb/0.6.0'
 
     input:
     set contigsID, file(blast_nt_p1), file(blast_nt_5utr), file(blast_nt_3d) from otherblastntChannel
@@ -727,6 +727,7 @@ process abundance_vp1 {
     //clusterOptions='--qos=normal -p common'
     publishDir "$myDir", mode: 'copy'
     cache 'deep'
+    //conda '/pasteur/homes/aghozlan/condaenvs/entvirus_env'
     //errorStrategy 'finish'
 
     input:
@@ -740,7 +741,7 @@ process abundance_vp1 {
 
     output:
     file("abundance/count_matrix.tsv") into countChannel
-    file("abundance/count_matrix_shaman.tsv") into count_shamanChannel
+    file("abundance/count_matrix.tsv") into counttofilerChannel
     // change to shared
     shell:
     """
@@ -749,10 +750,35 @@ process abundance_vp1 {
            -db p1mbma.index -e !{params.mail} -q !{params.queue} \
            -p !{params.partition} --bowtie2 \
            --best -m PE -t !{params.cpus}
-    filter_count_matrix.py abundance/comptage/count_matrix.txt !{params.filter_matrix} abundance/count_matrix_shaman.tsv
     mv abundance/comptage/count_matrix.txt abundance/count_matrix.tsv
     """
 }
+
+process filter_count {
+    //queue = 'common'
+    //clusterOptions='--qos=normal -p common'
+    publishDir "$myDir", mode: 'copy'
+    cache 'deep'
+    //errorStrategy 'finish'
+
+    input:
+    file(count) from counttofilerChannel
+    
+
+    when:
+    params.abundance == "yes"
+
+    output:
+    file("abundance/count_matrix_shaman.tsv") into count_shamanChannel
+    // change to shared
+    shell:
+    """
+    #!/usr/bin/env bash
+    mkdir abundance
+    filter_count_matrix.py !{count} !{params.filter_matrix} abundance/count_matrix_shaman.tsv
+    """
+}
+
 
 
 //process combine_vp1 {
@@ -927,24 +953,24 @@ process enterovirus_classification {
     //set "!{fasta.baseName}", file("*.fasta") into fastaserotype
     //file("enterovirus_classified/*.fasta") into fastaclassified mode flatten
     //file("enterovirus_classified/*.fasta") into classified mode flatten
-    file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}.fasta") into fastaclassified mode flatten
-    set file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_rooted.fasta"), file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_association.txt") into fastaclassified_rooted mode flatten
-    file("phylogeny/*.txt") into itolChannel mode flatten
+    file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}.fasta") optional true into fastaclassified mode flatten
+    set file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_rooted.fasta"), file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_association.txt") optional true into fastaclassified_rooted mode flatten
+    file("phylogeny/*.txt") optional true into itolChannel mode flatten
 
     shell:
     """
     mkdir enterovirus_classified/ phylogeny/
-    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -itol phylogeny/
-    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -itol phylogeny/
-    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o enterovirus_classified/ -t "VP1_sequences" -itol phylogeny/
-    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -itol phylogeny/
-    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -itol phylogeny/
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -itol phylogeny/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -itol phylogeny/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o enterovirus_classified/ -t "VP1_sequences" -itol phylogeny/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -itol phylogeny/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -itol phylogeny/ -c
     # ROOTING trees with an other class
-    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -r !{params.seqfull} -itol phylogeny/ -e !{params.ent_serotype}
-    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -r !{params.p1} -itol phylogeny/ -e !{params.ent_serotype}
-    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  enterovirus_classified/ -t "VP1_sequences" -r !{params.vp1} -itol phylogeny/ -e !{params.ent_serotype}
-    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -r !{params.seq5utr} -itol phylogeny/ -e !{params.ent_serotype}
-    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -r !{params.seq3d} -itol phylogeny/ -e !{params.ent_serotype}
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -r !{params.seqfull} -itol phylogeny/ -e !{params.ent_serotype} -c
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -r !{params.p1} -itol phylogeny/ -e !{params.ent_serotype} -c
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  enterovirus_classified/ -t "VP1_sequences" -r !{params.vp1} -itol phylogeny/ -e !{params.ent_serotype} -c
+    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -r !{params.seq5utr} -itol phylogeny/ -e !{params.ent_serotype} -c
+    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -r !{params.seq3d} -itol phylogeny/ -e !{params.ent_serotype} -c
     """
 }
 
@@ -1118,7 +1144,7 @@ process phylogeny_rooted {
     mkdir phylogeny
     iqtree -m GTR+I+G4 -s !{msafilt}
     name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
-    gotree reroot outgroup -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
+    gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
     mv *.treefile phylogeny/
     """
 }
@@ -1141,7 +1167,7 @@ process phylogeny_rooted_large {
     mkdir phylogeny
     iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt}
     name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
-    gotree reroot outgroup -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
+    gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
     mv *.treefile phylogeny/
     """
 }

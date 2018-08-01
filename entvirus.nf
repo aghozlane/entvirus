@@ -312,41 +312,40 @@ process blast {
 
     output:
     //file("log.txt") into logChannel
-    set contigsID, file(contigs), file("blast/*_vp1.tsv") into vp1blastChannel
-    set contigsID, file(contigs), file("blast/*_p1.tsv"), file("blast/*_5utr.tsv"), file("blast/*_3d.tsv") into otherblastChannel
+    set contigsID, file(contigs), file("*_vp1.tsv") into vp1blastChannel
+    set contigsID, file(contigs), file("*_p1.tsv"), file("*_5utr.tsv"), file("*_3d.tsv") into otherblastChannel
     //file("blast/*_5utr.tsv") into blast5utrChannelresume
     //file("blast/*_3d.tsv") into blast3dChannelresume
     //file("blast/*_vp1.tsv") into vp1blastChannelresume
     //file("blast/*_p1.tsv") into p1blastChannelresume
-    set contigsID, file("blast/*_nt.tsv") into blastChannel
-    file("blast/*.tsv") into allblastChannel mode flatten
-    file("blast/*_p1.tsv") into p1bisblastChannel
-    file("blast/*_vp1.tsv") into vp1bisblastChannel
-    file("blast/*_5utr.tsv") into blast5utrbisChannel
-    file("blast/*_3d.tsv") into blast3dbisChannel
+    set contigsID, file("*_nt.tsv") into blastChannel
+    file("*.tsv") into allblastChannel mode flatten
+    file("*_p1.tsv") into p1bisblastChannel
+    file("*_vp1.tsv") into vp1bisblastChannel
+    file("*_5utr.tsv") into blast5utrbisChannel
+    file("*_3d.tsv") into blast3dbisChannel
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir blast
     blastn -query !{contigs}  -db !{params.vp1} -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_vp1.tsv -max_target_seqs 1 \
+           -out !{contigsID}_vp1.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
            -task blastn -evalue !{params.evalue} -max_hsps 1
     blastn -query !{contigs}  -db !{params.seq5utr} -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_5utr.tsv -max_target_seqs 1 \
+           -out !{contigsID}_5utr.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
            -task blastn -evalue !{params.evalue} -max_hsps 1
     blastn -query !{contigs}  -db !{params.seq3d} -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_3d.tsv -max_target_seqs 1 \
+           -out !{contigsID}_3d.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
            -task blastn -evalue !{params.evalue} -max_hsps 1
     blastn -query !{contigs} -db !{params.p1} -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_p1.tsv -max_target_seqs 1 \
+           -out !{contigsID}_p1.tsv -max_target_seqs 1 \
            -outfmt '6 qseqid sseqid qlen length qstart qend sstart send pident qcovs evalue'\
            -task blastn -evalue !{params.evalue} -max_hsps 1
     blastn -query !{contigs}  -db !{params.nt}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_nt.tsv -evalue !{params.evalue}\
+           -out !{contigsID}_nt.tsv -evalue !{params.evalue}\
            -max_target_seqs !{params.numberBestannotation} \
            -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
     """
@@ -416,7 +415,7 @@ vp1Channel.collectFile(name: 'vp1sequences.fasta')
 vp1tosave.subscribe { it.copyTo(myDir) }
 
 process blast_vp1 {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/blast/", mode: 'copy'
     memory "5G"
     cpus params.cpus
 
@@ -424,22 +423,22 @@ process blast_vp1 {
     set contigsID, file(vp1fasta) from vp1fastaChannel
 
     output:
-    set contigsID, file("blast/*_nt_vp1.tsv") into blastvp1ntChannel
+    set contigsID, file("*_nt_vp1.tsv") into blastvp1ntChannel
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir blast
     blastn -query !{vp1fasta}  -db !{params.nt}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_nt_vp1.tsv -evalue !{params.evalue}\
+           -out !{contigsID}_nt_vp1.tsv -evalue !{params.evalue}\
            -max_target_seqs 1 -max_hsps 1 \
            -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
     """
 }
 
 process annotation_vp1 {
+    label 'python3'
     //clusterOptions='--qos=normal -p common'
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/annotation/", mode: 'copy'
     //memory "10G"
 
     //beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
@@ -449,23 +448,22 @@ process annotation_vp1 {
     set contigsID, file(vp1_blast) from blastvp1ntChannel
 
     output:
-    file("annotation/*_annotation_vp1.tsv") into vp1finalChannel
+    file("*_annotation_vp1.tsv") into vp1finalChannel
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir annotation
     nlines=\$(wc -l !{vp1_blast}|cut -f 1 -d ' ')
     if [ \${nlines} -gt '0' ]
     then
         # Get the taxonomy
         get_taxonomy3.py -i !{vp1_blast} \
-        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_vp1.tsv
+        -d !{params.taxadb} -o !{contigsID}_taxonomy_vp1.tsv
         ExtractNCBIDB2.py -f !{vp1_blast} \
-        -g annotation/!{contigsID}_taxonomy_vp1.tsv -nb !{params.numberBestannotation} \
-        -o annotation/!{vp1_blast.baseName}_annotation_vp1.tsv
+        -g !{contigsID}_taxonomy_vp1.tsv -nb !{params.numberBestannotation} \
+        -o !{vp1_blast.baseName}_annotation_vp1.tsv
     else
-        touch annotation/!{vp1_blast.baseName}_annotation_vp1.tsv
+        touch !{vp1_blast.baseName}_annotation_vp1.tsv
     fi
     """
 }
@@ -535,7 +533,7 @@ fasta3dChannel.collectFile(name:'3dsequences.fasta')
               .into { fna3d ; tosave3d }
 tosave3d.subscribe { it.copyTo(myDir) }
 process blast_other {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/blast/", mode: 'copy'
     memory "5G"
     cpus params.cpus
     cache 'deep'
@@ -546,23 +544,22 @@ process blast_other {
     output:
     //file("blast/*_nt_p1.tsv"), file("blast/*_nt_5utr.tsv"), file("blast/*_nt_3d.tsv") into otherblastChannelresume
     //set file("blast/*_nt_p1.tsv"), file("blast/*_nt_5utr.tsv"), file("blast/*_nt_3d.tsv") into otherblastChannelresume
-    set contigsID, file("blast/*_nt_p1.tsv"), file("blast/*_nt_5utr.tsv"), file("blast/*_nt_3d.tsv") into otherblastntChannel
+    set contigsID, file("*_nt_p1.tsv"), file("*_nt_5utr.tsv"), file("*_nt_3d.tsv") into otherblastntChannel
     //file("blast/*.tsv") into otherblastncbiChannel
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir blast
     blastn -query !{p1blast}  -db !{params.nt}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_nt_p1.tsv -evalue !{params.evalue}\
+           -out !{contigsID}_nt_p1.tsv -evalue !{params.evalue}\
            -max_target_seqs 1 -max_hsps 1 \
            -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
     blastn -query !{blast5utr}  -db !{params.nt}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_nt_5utr.tsv -evalue !{params.evalue}\
+           -out !{contigsID}_nt_5utr.tsv -evalue !{params.evalue}\
            -max_target_seqs 1 -max_hsps 1 \
            -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
     blastn -query !{blast3d}  -db !{params.nt}  -num_threads !{params.cpus} \
-           -out blast/!{contigsID}_nt_3d.tsv -evalue !{params.evalue}\
+           -out !{contigsID}_nt_3d.tsv -evalue !{params.evalue}\
            -max_target_seqs 1 -max_hsps 1 \
            -outfmt '6 qseqid sseqid qlen length mismatch gapopen qstart qend sstart send pident qcovs evalue bitscore'
     """
@@ -599,8 +596,9 @@ process blast_other {
 
 // Extract ncbi tree
 process annotation {
+    label 'python3'
     //clusterOptions='--qos=normal -p common'
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/annotation/", mode: 'copy'
     //memory "10G"
 
     //beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
@@ -610,31 +608,31 @@ process annotation {
     set contigsID, file(ncbi_annotation) from blastChannel
 
     output:
-    file("annotation/*_annotation.tsv") into annotationChannel mode flatten
-    file("annotation/*_taxonomy.tsv") into taxChannel mode flatten
+    file("*_annotation.tsv") into annotationChannel mode flatten
+    file("*_taxonomy.tsv") into taxChannel mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir annotation
     nlines=\$(wc -l !{ncbi_annotation}|cut -f 1 -d ' ')
     if [ \${nlines} -gt '0' ]
     then
         # Get the taxonomy
         get_taxonomy3.py -i !{ncbi_annotation} \
-        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy.tsv
+        -d !{params.taxadb} -o !{contigsID}_taxonomy.tsv
         ExtractNCBIDB2.py -f !{ncbi_annotation} \
-        -g annotation/!{contigsID}_taxonomy.tsv -nb !{params.numberBestannotation} \
-        -o annotation/!{ncbi_annotation.baseName}_annotation.tsv
+        -g !{contigsID}_taxonomy.tsv -nb !{params.numberBestannotation} \
+        -o !{ncbi_annotation.baseName}_annotation.tsv
     else
-        touch annotation/!{ncbi_annotation.baseName}_annotation.tsv
-        touch annotation/!{ncbi_annotation.baseName}_taxonomy.tsv
+        touch !{ncbi_annotation.baseName}_annotation.tsv
+        touch !{ncbi_annotation.baseName}_taxonomy.tsv
     fi
     """
 }
 
 process annotation_other {
-    publishDir "$myDir", mode: 'copy'
+    label 'python3'
+    publishDir "$myDir/annotation/", mode: 'copy'
     //beforeScript ='source /local/gensoft2/adm/etc/profile.d/modules.sh;module use /pasteur/projets/policy01/Matrix/modules'
     //module = 'Python/3.6.0:taxadb/0.6.0'
 
@@ -642,49 +640,48 @@ process annotation_other {
     set contigsID, file(blast_nt_p1), file(blast_nt_5utr), file(blast_nt_3d) from otherblastntChannel
 
     output:
-    file("annotation/*_p1_annotation.tsv") into p1finalChannel
-    file("annotation/*_5utr_annotation.tsv") into final5utrChannel
-    file("annotation/*_3d_annotation.tsv") into final3dChannel
+    file("*_p1_annotation.tsv") into p1finalChannel
+    file("*_5utr_annotation.tsv") into final5utrChannel
+    file("*_3d_annotation.tsv") into final3dChannel
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir annotation
     nlines=\$(wc -l < !{blast_nt_p1})
     if [ \${nlines} -gt '0' ]
     then
         # Get the taxonomy
         get_taxonomy3.py -i !{blast_nt_p1} \
-        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_p1.tsv
+        -d !{params.taxadb} -o !{contigsID}_taxonomy_p1.tsv
         ExtractNCBIDB2.py -f !{blast_nt_p1} \
-        -g annotation/!{contigsID}_taxonomy_p1.tsv -nb !{params.numberBestannotation} \
-        -o annotation/!{blast_nt_p1.baseName}_annotation.tsv
+        -g !{contigsID}_taxonomy_p1.tsv -nb !{params.numberBestannotation} \
+        -o !{blast_nt_p1.baseName}_annotation.tsv
     else
-        touch annotation/!{blast_nt_p1.baseName}_annotation.tsv
+        touch !{blast_nt_p1.baseName}_annotation.tsv
     fi
     nlines=\$(wc -l < !{blast_nt_5utr})
     if [ \${nlines} -gt '0' ]
     then
         # Get the taxonomy
         get_taxonomy3.py -i !{blast_nt_5utr} \
-        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_5utr.tsv
+        -d !{params.taxadb} -o !{contigsID}_taxonomy_5utr.tsv
         ExtractNCBIDB2.py -f !{blast_nt_5utr} \
-        -g annotation/!{contigsID}_taxonomy_5utr.tsv -nb !{params.numberBestannotation} \
-        -o annotation/!{blast_nt_5utr.baseName}_annotation.tsv
+        -g !{contigsID}_taxonomy_5utr.tsv -nb !{params.numberBestannotation} \
+        -o !{blast_nt_5utr.baseName}_annotation.tsv
     else
-        touch annotation/!{blast_nt_5utr.baseName}_annotation.tsv
+        touch !{blast_nt_5utr.baseName}_annotation.tsv
     fi
     nlines=\$(wc -l < !{blast_nt_3d})
     if [ \${nlines} -gt '0' ]
     then
         # Get the taxonomy
         get_taxonomy3.py -i !{blast_nt_3d} \
-        -d !{params.taxadb} -o annotation/!{contigsID}_taxonomy_3d.tsv
+        -d !{params.taxadb} -o !{contigsID}_taxonomy_3d.tsv
         ExtractNCBIDB2.py -f !{blast_nt_3d} \
-        -g annotation/!{contigsID}_taxonomy_3d.tsv -nb !{params.numberBestannotation} \
-        -o annotation/!{blast_nt_3d.baseName}_annotation.tsv
+        -g !{contigsID}_taxonomy_3d.tsv -nb !{params.numberBestannotation} \
+        -o !{blast_nt_3d.baseName}_annotation.tsv
     else
-        touch annotation/!{blast_nt_3d.baseName}_annotation.tsv
+        touch !{blast_nt_3d.baseName}_annotation.tsv
     fi
     """
 
@@ -757,7 +754,7 @@ process abundance_vp1 {
 process filter_count {
     //queue = 'common'
     //clusterOptions='--qos=normal -p common'
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/abundance/", mode: 'copy'
     cache 'deep'
     //errorStrategy 'finish'
 
@@ -774,8 +771,7 @@ process filter_count {
     shell:
     """
     #!/usr/bin/env bash
-    mkdir abundance
-    filter_count_matrix.py !{count} !{params.filter_matrix} abundance/count_matrix_shaman.tsv
+    filter_count_matrix.py !{count} !{params.filter_matrix} count_matrix_shaman.tsv
     """
 }
 
@@ -975,7 +971,7 @@ process enterovirus_classification {
 }
 
 process multiple_alignment {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/msa/", mode: 'copy'
     cpus params.cpus
     cache 'deep'
 
@@ -985,25 +981,24 @@ process multiple_alignment {
 
     output:
     //set fastaID, file("msa/*.ali") into msaserotype
-    file("msa/*.ali") optional true into msadata //mode flatten
+    file("*.ali") optional true into msadata //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir -p msa
     nseq=\$( grep -c "^>" !{fasta} )
     if [ "\${nseq}" -ge '200' ]
     then
-        mafft --retree 1 --thread !{params.cpus} !{fasta} > msa/!{fasta.baseName}.ali
+        mafft --retree 1 --thread !{params.cpus} !{fasta} > !{fasta.baseName}.ali
     elif [ "\${nseq}" -gt '1' ]
     then
-        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > msa/!{fasta.baseName}.ali
+        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{fasta.baseName}.ali
     fi
     """
 }
 
 process multiple_alignment_rooted {
-    publishDir "$myDir", mode: 'copy', pattern: 'msa/*.ali'
+    publishDir "$myDir/msa/", mode: 'copy', pattern: 'msa/*.ali'
     cpus params.cpus_phylogeny
     cache 'deep'
 
@@ -1013,25 +1008,24 @@ process multiple_alignment_rooted {
 
     output:
     //set fastaID, file("msa/*.ali") into msaserotype
-    set file("msa/*.ali"), file(association) optional true into msadata_rooted //mode flatten
+    set file("*.ali"), file(association) optional true into msadata_rooted //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir -p msa
     nseq=\$( grep -c "^>" !{fasta} )
     if [ "\${nseq}" -ge '200' ]
     then
-        mafft --retree 1 --thread !{params.cpus} !{fasta} > msa/!{fasta.baseName}.ali
+        mafft --retree 1 --thread !{params.cpus} !{fasta} > !{fasta.baseName}.ali
     elif [ "\${nseq}" -gt '1' ]
     then
-        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > msa/!{fasta.baseName}.ali
+        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{fasta.baseName}.ali
     fi
     """
 }
 
 process filtering_alignment {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/msa/", mode: 'copy'
     cache 'deep'
 
     input:
@@ -1040,26 +1034,25 @@ process filtering_alignment {
 
     output:
     //set fastaID, file("*_bmge.ali") into msafiltserotype
-    file("msa/*_bmge.ali") optional true into msadatafilt //mode flatten
-    file("msa/*_bmge_large.ali") optional true into msalargedatafilt
+    file("*_bmge.ali") optional true into msadatafilt //mode flatten
+    file("*_bmge_large.ali") optional true into msalargedatafilt
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir -p msa
     nseq=\$( grep -c "^>" !{msa} )
     if [ "\${nseq}" -ge '200' ]
     then
-        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge_large.ali
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge_large.ali
     elif [ "\${nseq}" -gt '3' ]
     then
-        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge.ali
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
     fi
     """
 }
 
 process filtering_alignment_rooted {
-    publishDir "$myDir", mode: 'copy', pattern: 'msa/*.ali'
+    publishDir "$myDir/msa/", mode: 'copy', pattern: 'msa/*.ali'
     cache 'deep'
 
     input:
@@ -1068,8 +1061,8 @@ process filtering_alignment_rooted {
 
     output:
     //set fastaID, file("*_bmge.ali") into msafiltserotype
-    set file("msa/*_bmge.ali"), file(association) optional true into msadatafilt_rooted //mode flatten
-    set file("msa/*_bmge_large.ali"), file(association) optional true into msalargedatafilt_rooted
+    set file("*_bmge.ali"), file(association) optional true into msadatafilt_rooted //mode flatten
+    set file("*_bmge_large.ali"), file(association) optional true into msalargedatafilt_rooted
 
     shell:
     """
@@ -1078,16 +1071,16 @@ process filtering_alignment_rooted {
     nseq=\$( grep -c "^>" !{msa} )
     if [ "\${nseq}" -ge '200' ]
     then
-        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge_large.ali
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge_large.ali
     elif [ "\${nseq}" -gt '3' ]
     then
-        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of msa/!{msa.baseName}_bmge.ali
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
     fi
     """
 }
 
 process phylogeny {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/phylogeny/", mode: 'copy'
     cache 'deep'
 
     input:
@@ -1095,19 +1088,17 @@ process phylogeny {
     file(msafilt) from msadatafilt
 
     output:
-    file("phylogeny/*.treefile") into phylogenyserotype //mode flatten
+    file("*.treefile") into phylogenyserotype //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir phylogeny
     iqtree -m GTR+I+G4 -s !{msafilt}
-    mv *.treefile phylogeny/
     """
 }
 
 process phylogeny_large {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/phylogeny/", mode: 'copy'
     cpus params.cpus_phylogeny
     cache 'deep'
 
@@ -1116,19 +1107,17 @@ process phylogeny_large {
     file(msafilt) from msalargedatafilt
 
     output:
-    file("phylogeny/*.treefile") into phylogenyserotype_large //mode flatten
+    file("*.treefile") into phylogenyserotype_large //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir phylogeny
     iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt}
-    mv *.treefile phylogeny/
     """
 }
 
 process phylogeny_rooted {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/phylogeny/", mode: 'copy'
     cache 'deep'
 
     input:
@@ -1136,21 +1125,19 @@ process phylogeny_rooted {
     set file(msafilt), file(association) from msadatafilt_rooted
 
     output:
-    file("phylogeny/*_final.treefile") into phylogenyserotype_rooted //mode flatten
+    file("*_final.treefile") into phylogenyserotype_rooted //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir phylogeny
     iqtree -m GTR+I+G4 -s !{msafilt}
     name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
     gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
-    mv *.treefile phylogeny/
     """
 }
 
 process phylogeny_rooted_large {
-    publishDir "$myDir", mode: 'copy'
+    publishDir "$myDir/phylogeny/", mode: 'copy'
     cpus params.cpus_phylogeny
     cache 'deep'
 
@@ -1159,16 +1146,14 @@ process phylogeny_rooted_large {
     set file(msafilt), file(association) from msalargedatafilt_rooted
 
     output:
-    file("phylogeny/*.treefile") into phylogenyserotype_large_rooted //mode flatten
+    file("*.treefile") into phylogenyserotype_large_rooted //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir phylogeny
     iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt}
     name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
     gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
-    mv *.treefile phylogeny/
     """
 }
 

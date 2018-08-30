@@ -82,6 +82,8 @@ def get_arguments():
                         help='Segment size (default 300)')
     parser.add_argument('-si', dest='segment_increment_size', type=int,
                         default=100, help='Segment increment size (default 100)')
+    parser.add_argument('-sc', dest='scale_window', type=int, default=1000,
+                        help='Scale for heatmap presentation (default 1000)')
     parser.add_argument('-t', dest='temp_dir', type=isdir, required=True,
                         help='Temporary output dir')
     parser.add_argument('-n', dest='num_cpu', type=int, default=mp.cpu_count(),
@@ -325,7 +327,7 @@ def parse_segment_distance(list_seg_dist, segment, segment_increment_size, size_
 
 
 def plot_heatmap(matrix_dist, output_file, segment_increment_size,
-                 size_alignment, count_seq, min_value, max_value,
+                 size_alignment, count_seq, scale_window, min_value, max_value,
                  vmin=0.0, vmax=1.0):
     """Plot half heatmap
     """
@@ -336,7 +338,7 @@ def plot_heatmap(matrix_dist, output_file, segment_increment_size,
     sns_plot = sns.heatmap(matrix_dist, xticklabels=10, yticklabels=10,
                            square=True, mask=mask, vmin=vmin, vmax=vmax)
     sns_plot.invert_yaxis()
-    scale_labels = np.arange(0, size_alignment + segment_increment_size, 1000)
+    scale_labels = np.arange(0, size_alignment + segment_increment_size, scale_window)
     sns_plot.set_xticklabels(scale_labels)
     sns_plot.set_yticklabels(scale_labels)
     #sns.axes_style("white")
@@ -367,7 +369,7 @@ def plot_heatmap(matrix_dist, output_file, segment_increment_size,
     #plt.savefig(output_file, dpi=500)
 
 def run_computation(aligned_multifasta_file, segment_size, segment_increment_size,
-    size_alignment, count_seq, temp_dir, phylogeny_software, support_threshold,
+    size_alignment, count_seq, scale_window, temp_dir, phylogeny_software, support_threshold,
     num_cpu, output_file, output_zoomed_file, matrix_file, binmatrix_file, vmin=0.0):
     # Extract alignment
     segment = divide_alignment(size_alignment, segment_size,
@@ -393,11 +395,11 @@ def run_computation(aligned_multifasta_file, segment_size, segment_increment_siz
     # Plot matrix
     print("Plot matrix")
     plot_heatmap(matrix_dist, output_file, segment_increment_size,
-                 size_alignment, count_seq, min_value, max_value)
+                 size_alignment, count_seq, scale_window, min_value, max_value)
     if vmin > 0.0 and vmin < 1.0:
         np.savetxt(binmatrix_file, (matrix_dist >= vmin).astype(int), delimiter="\t")
         plot_heatmap(matrix_dist, output_zoomed_file, segment_increment_size,
-                 size_alignment, count_seq, vmin, max_value, vmin, max_value)
+                 size_alignment, count_seq, scale_window, vmin, max_value, vmin, max_value)
     return max_value
 
 def main():
@@ -437,7 +439,7 @@ def main():
     if not os.path.isdir(temp_dir):
         os.mkdir(temp_dir)
     vmin = run_computation(output_name + ".ali", args.segment_size,
-        args.segment_increment_size, size_alignment, count_seq,
+        args.segment_increment_size, size_alignment, count_seq, args.scale_window,
         temp_dir, args.phylogeny_software, args.support_threshold, args.num_cpu,
         args.sim_png, args.res_zoomed_png, args.output_sim_matrix, args.output_sim_binmatrix)
 
@@ -447,7 +449,7 @@ def main():
     if not os.path.isdir(temp_dir):
         os.mkdir(temp_dir)
     run_computation(args.aligned_multifasta_file, args.segment_size,
-        args.segment_increment_size, size_alignment, count_seq,
+        args.segment_increment_size, size_alignment, count_seq, args.scale_window,
         temp_dir, args.phylogeny_software, args.support_threshold, args.num_cpu,
         args.res_png, args.res_zoomed_png, args.output_matrix, args.output_binmatrix, vmin)
 

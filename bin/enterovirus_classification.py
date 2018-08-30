@@ -106,7 +106,7 @@ def get_query(query_file, tag, incomplete):
             query_reader = csv.reader(query, delimiter="\t")
             header = query_reader.next()
             interest_seq_posit = header.index(tag)
-            print(header)
+            #print(header)
             interest_serotype_posit = header.index("Serotype_VP1")
             interest_specie_posit = header.index("Specie_VP1")
             matched_5utr = header.index('Matched_5UTR')
@@ -118,7 +118,7 @@ def get_query(query_file, tag, incomplete):
                     if line[interest_seq_posit] != "":
                         assert(line[interest_seq_posit] not in query_dict)
                         if line[matched_5utr] != "" and line[matched_3d] != "" or incomplete:
-                            print(line)
+                            #print(line)
                             query_dict[line[interest_seq_posit]] = [
                              line[interest_serotype_posit].upper(),
                              line[interest_specie_posit].upper()]
@@ -137,14 +137,14 @@ def get_query(query_file, tag, incomplete):
         print(line[interest_seq_posit])
         print(query_dict)
         sys.exit("Strange value in {0}".format(query_file))
-    print("here")
-    print(query_dict)
-    print("classify_list")
-    print(classify_list)
-    print("classify specie list")
-    print(classify_specie_list)
-    print("serotype")
-    print(serotype_list)
+    # print("here")
+    # print(query_dict)
+    # print("classify_list")
+    # print(classify_list)
+    # print("classify specie list")
+    # print(classify_specie_list)
+    # print("serotype")
+    # print(serotype_list)
     return query_dict, classify_list, classify_specie_list, serotype_list
 
 
@@ -362,6 +362,7 @@ def main():
      classify_specie_list, serotype_list) = get_query(args.resume_file,
                                                       args.tag,
                                                       args.incomplete)
+    print("{} descriptions loaded".format(len(query_dict)))
     # Load specie association
     if args.ent_serotype_file and args.template_seq_file:
         # Load enterovirus serotype
@@ -373,6 +374,7 @@ def main():
     # Grab query sequence in the database
     print("Load database sequence")
     sequence_data = get_sequence(query_dict, args.fasta_file)
+    print("{} sequences loaded".format(len(sequence_data)))
     # Write the new fasta file
     print("Write the new fasta")
     write_sequence(args.results, sequence_data, query_dict, classify_list,

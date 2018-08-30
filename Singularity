@@ -19,7 +19,7 @@ Entvirus workflow
     # Alientrimmer
     wget ftp://ftp.pasteur.fr/pub/gensoft/projects/AlienTrimmer/AlienTrimmer_0.4.0.tar.gz
     tar -zxf AlienTrimmer_0.4.0.tar.gz
-    cd AlienTrimmer_0.4.0/src && make && mv AlienTrimmer /usr/local/bin/ && cd
+    cd AlienTrimmer_0.4.0/src && sed "s:-march=native::g" -i Makefile && make && mv AlienTrimmer /usr/local/bin/ && cd
     # Khmer
     pip2 install khmer
     # Megahit

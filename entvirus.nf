@@ -1017,7 +1017,7 @@ process multiple_alignment_rooted {
     if [ "\${nseq}" -ge '200' ]
     then
         mafft --retree 1 --thread !{params.cpus} !{fasta} > !{fasta.baseName}.ali
-    elif [ "\${nseq}" -gt '1' ]
+    elif [ "\${nseq}" -gt '3' ]
     then
         mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{fasta.baseName}.ali
     fi

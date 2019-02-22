@@ -760,7 +760,7 @@ process filter_count {
 
     input:
     file(count) from counttofilerChannel
-    
+
 
     when:
     params.abundance == "yes"
@@ -934,7 +934,6 @@ else{
 
 process enterovirus_classification {
     publishDir "$myDir", mode: 'copy'
-    cache 'deep'
 
     input:
     file(result_summary) from resultChannel
@@ -946,34 +945,79 @@ process enterovirus_classification {
     //set key, fasta from fastachan
 
     output:
-    //set "!{fasta.baseName}", file("*.fasta") into fastaserotype
-    //file("enterovirus_classified/*.fasta") into fastaclassified mode flatten
-    //file("enterovirus_classified/*.fasta") into classified mode flatten
-    file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}.fasta") optional true into fastaclassified mode flatten
-    set file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_rooted.fasta"), file("enterovirus_classified/*_{contigs,p1,vp1,5utr,3d}_association.txt") optional true into fastaclassified_rooted mode flatten
-    file("phylogeny/*.txt") optional true into itolChannel mode flatten
+    // optional true
+    file("enterovirus_classified/complete_virus/*.fasta") into fastaclassified_complete mode flatten
+    //file("enterovirus_classified/complete_virus/*_{contigs,p1,vp1,5utr,3d}_rooted.fasta") optional true into fastaclassified_complete_rooted mode flatten
+    file("enterovirus_classified/all_virus/*.fasta") into fastaclassified mode flatten
+    /*file("enterovirus_classified/all_virus/*_{contigs,p1,vp1,5utr,3d}_rooted.fasta") optional true into fastaclassified_rooted mode flatten
+    file("enterovirus_classified/complete_virus/*_{contigs,p1,vp1,5utr,3d}_association.txt") optional true into association_complete_rooted mode flatten
+    file("enterovirus_classified/all_virus/*_{contigs,p1,vp1,5utr,3d}_association.txt") optional true into association_rooted mode flatten
+    file("enterovirus_classified/complete_virus/*_{contigs,p1,vp1,5utr,3d}_association.txt") optional true into association_large_complete_rooted mode flatten
+    file("enterovirus_classified/all_virus/*_{contigs,p1,vp1,5utr,3d}_association.txt") optional true into association_large_rooted mode flatten*/
+    file("phylogeny/*/*.txt") optional true into itolChannel mode flatten
 
     shell:
     """
-    mkdir enterovirus_classified/ phylogeny/
-    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -itol phylogeny/ -c
-    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -itol phylogeny/ -c
-    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o enterovirus_classified/ -t "VP1_sequences" -itol phylogeny/ -c
-    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -itol phylogeny/ -c
-    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -itol phylogeny/ -c
+    mkdir -p phylogeny/all_virus/ phylogeny/complete_virus/ enterovirus_classified/complete_virus/ enterovirus_classified/all_virus/
+    # complete virus
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/complete_virus/ -t "Contigs_with_VP1" -itol phylogeny/complete_virus/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/complete_virus/ -t "P1_sequences" -itol phylogeny/complete_virus/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o enterovirus_classified/complete_virus/ -t "VP1_sequences" -itol phylogeny/complete_virus/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/complete_virus/ -t "5UTR_sequences" -itol phylogeny/complete_virus/ -c
+    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/complete_virus/ -t "3D_sequences" -itol phylogeny/complete_virus/ -c
+    # ROOTING complete virus
+    #enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/complete_virus/ -t "Contigs_with_VP1" -r !{params.seqfull} -itol phylogeny/ -e !{params.ent_serotype} -c
+    #enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/complete_virus/ -t "P1_sequences" -r !{params.p1} -itol phylogeny/ -e !{params.ent_serotype} -c
+    #enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  enterovirus_classified/complete_virus/ -t "VP1_sequences" -r !{params.vp1} -itol phylogeny/ -e !{params.ent_serotype} -c
+    #enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/complete_virus/ -t "5UTR_sequences" -r !{params.seq5utr} -itol phylogeny/ -e !{params.ent_serotype} -c
+    #enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/complete_virus/ -t "3D_sequences" -r !{params.seq3d} -itol phylogeny/ -e !{params.ent_serotype} -c
+    # all virus
+    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/all_virus/ -t "Contigs_with_VP1" -itol phylogeny/all_virus/
+    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/all_virus/ -t "P1_sequences" -itol phylogeny/all_virus/ 
+    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o enterovirus_classified/all_virus/ -t "VP1_sequences" -itol phylogeny/all_virus/ 
+    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/all_virus/ -t "5UTR_sequences" -itol phylogeny/all_virus/ 
+    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/all_virus/ -t "3D_sequences" -itol phylogeny/all_virus/
     # ROOTING trees with an other class
-    enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/ -t "Contigs_with_VP1" -r !{params.seqfull} -itol phylogeny/ -e !{params.ent_serotype} -c
-    enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/ -t "P1_sequences" -r !{params.p1} -itol phylogeny/ -e !{params.ent_serotype} -c
-    enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  enterovirus_classified/ -t "VP1_sequences" -r !{params.vp1} -itol phylogeny/ -e !{params.ent_serotype} -c
-    enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/ -t "5UTR_sequences" -r !{params.seq5utr} -itol phylogeny/ -e !{params.ent_serotype} -c
-    enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/ -t "3D_sequences" -r !{params.seq3d} -itol phylogeny/ -e !{params.ent_serotype} -c
+    #enterovirus_classification.py -i !{result_summary} -f !{vp1contigsfasta} -o enterovirus_classified/all_virus/ -t "Contigs_with_VP1" -r !{params.seqfull} -itol phylogeny/ -e !{params.ent_serotype}
+    #enterovirus_classification.py -i !{result_summary} -f !{p1fasta} -o enterovirus_classified/all_virus/ -t "P1_sequences" -r !{params.p1} -itol phylogeny/ -e !{params.ent_serotype}
+    #enterovirus_classification.py -i !{result_summary} -f !{vp1fasta} -o  enterovirus_classified/all_virus/ -t "VP1_sequences" -r !{params.vp1} -itol phylogeny/ -e !{params.ent_serotype}
+    #enterovirus_classification.py -i !{result_summary} -f !{fna5utr} -o enterovirus_classified/all_virus/ -t "5UTR_sequences" -r !{params.seq5utr} -itol phylogeny/ -e !{params.ent_serotype}
+    #enterovirus_classification.py -i !{result_summary} -f !{fna3d} -o enterovirus_classified/all_virus/ -t "3D_sequences" -r !{params.seq3d} -itol phylogeny/ -e !{params.ent_serotype}
+    """
+}
+
+//fastaclassified_complete.subscribe{ println it }
+
+process multiple_alignment_complete {
+    publishDir "$myDir/msa/complete/", mode: 'copy'
+    cpus params.cpus
+    tag "${fasta}"
+
+    input:
+    file(fasta) from fastaclassified_complete
+
+    output:
+    file("${subjectName}.ali") optional true into msadata_complete //mode flatten
+
+    script:
+    subjectName=fasta.baseName
+    """
+    #!/usr/bin/env bash
+    nseq=\$(grep -c "^>" ${fasta})
+    if [ "\${nseq}" -ge '200' ]
+    then
+        mafft --retree 1 --thread ${params.cpus} ${fasta} > ${subjectName}.ali
+    elif [ "\${nseq}" -gt '3' ]
+    then
+        mafft  --thread ${params.cpus}  --maxiterate 1000 --localpair ${fasta} > ${subjectName}.ali
+    fi
     """
 }
 
 process multiple_alignment {
-    publishDir "$myDir/msa/", mode: 'copy'
+    publishDir "$myDir/msa/all_virus/", mode: 'copy'
     cpus params.cpus
-    cache 'deep'
+    tag "${fasta}"
 
     input:
     //set fastaID, file(fasta) from fastaserotype
@@ -983,50 +1027,109 @@ process multiple_alignment {
     //set fastaID, file("msa/*.ali") into msaserotype
     file("*.ali") optional true into msadata //mode flatten
 
-    shell:
+    script:
+    subjectName=fasta.baseName
     """
     #!/usr/bin/env bash
     nseq=\$( grep -c "^>" !{fasta} )
     if [ "\${nseq}" -ge '200' ]
     then
-        mafft --retree 1 --thread !{params.cpus} !{fasta} > !{fasta.baseName}.ali
-    elif [ "\${nseq}" -gt '1' ]
+        mafft --retree 1 --thread !{params.cpus} !{fasta} > !{subjectName}.ali
+    elif [ "\${nseq}" -gt '3' ]
     then
-        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{fasta.baseName}.ali
+        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{subjectName}.ali
     fi
     """
 }
 
-process multiple_alignment_rooted {
-    publishDir "$myDir/msa/", mode: 'copy', pattern: 'msa/*.ali'
-    cpus params.cpus_phylogeny
-    cache 'deep'
+// process multiple_alignment_complete_rooted {
+//     publishDir "$myDir/msa/complete/", mode: 'copy', pattern: 'msa/*.ali'
+//     cpus params.cpus_phylogeny
+//     cache 'deep'
+//     tag "${fasta}"
+
+//     input:
+//     //set fastaID, file(fasta) from fastaserotype
+//     file(fasta) from fastaclassified_complete_rooted
+
+//     output:
+//     //set fastaID, file("msa/*.ali") into msaserotype
+//     file("*.ali") optional true into msadata_complete_rooted mode flatten
+
+//     shell:
+//     """
+//     #!/usr/bin/env bash
+//     nseq=\$( grep -c "^>" !{fasta} )
+//     if [ "\${nseq}" -ge '200' ]
+//     then
+//         mafft --retree 1 --thread !{params.cpus} !{fasta} > !{fasta.baseName}.ali
+//     elif [ "\${nseq}" -gt '3' ]
+//     then
+//         mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{fasta.baseName}.ali
+//     fi
+//     """
+// }
+
+// process multiple_alignment_rooted {
+//     publishDir "$myDir/msa/all_virus/", mode: 'copy', pattern: 'msa/*.ali'
+//     cpus params.cpus_phylogeny
+//     cache 'deep'
+//     tag "${fasta}"
+
+//     input:
+//     //set fastaID, file(fasta) from fastaserotype
+//     file(fasta) from fastaclassified_rooted
+
+//     output:
+//     //set fastaID, file("msa/*.ali") into msaserotype
+//     file("*.ali") optional true into msadata_rooted mode flatten
+
+//     shell:
+//     """
+//     #!/usr/bin/env bash
+//     nseq=\$( grep -c "^>" !{fasta} )
+//     if [ "\${nseq}" -ge '200' ]
+//     then
+//         mafft --retree 1 --thread !{params.cpus} !{fasta} > !{fasta.baseName}.ali
+//     elif [ "\${nseq}" -gt '3' ]
+//     then
+//         mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{fasta.baseName}.ali
+//     fi
+//     """
+// }
+// msadata_complete.subscribe {println it }
+
+process filtering_alignment_complete {
+    publishDir "$myDir/msa/complete/", mode: 'copy'
+    tag "${msa}"
 
     input:
-    //set fastaID, file(fasta) from fastaserotype
-    set file(fasta), file(association) from fastaclassified_rooted
+    //set fastaID, file(msa) from msaserotype
+    file(msa) from msadata_complete
 
     output:
-    //set fastaID, file("msa/*.ali") into msaserotype
-    set file("*.ali"), file(association) optional true into msadata_rooted mode flatten
+    //set fastaID, file("*_bmge.ali") into msafiltserotype
+    file("*_bmge.ali") optional true into msadatafilt_complete //mode flatten
+    //file("*_bmge_large.ali") optional true into msalargedatafilt_complete
 
     shell:
     """
     #!/usr/bin/env bash
-    nseq=\$( grep -c "^>" !{fasta} )
-    if [ "\${nseq}" -ge '200' ]
-    then
-        mafft --retree 1 --thread !{params.cpus} !{fasta} > !{fasta.baseName}.ali
-    elif [ "\${nseq}" -gt '3' ]
-    then
-        mafft  --thread !{params.cpus}  --maxiterate 1000 --localpair !{fasta} > !{fasta.baseName}.ali
-    fi
+    #nseq=\$( grep -c "^>" !{msa} )
+    #if [ "\${nseq}" -ge '200' ]
+    #then
+    #    BMGE -i !{msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge_large.ali
+    #elif [ "\${nseq}" -gt '3' ]
+    #if [ "\${nseq}" -gt '3' ]
+    #then
+    BMGE -i !{msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
+    #fi
     """
 }
 
 process filtering_alignment {
-    publishDir "$myDir/msa/", mode: 'copy'
-    cache 'deep'
+    publishDir "$myDir/msa/all_virus/", mode: 'copy'
+    tag "${msa}"
 
     input:
     //set fastaID, file(msa) from msaserotype
@@ -1035,39 +1138,39 @@ process filtering_alignment {
     output:
     //set fastaID, file("*_bmge.ali") into msafiltserotype
     file("*_bmge.ali") optional true into msadatafilt //mode flatten
-    file("*_bmge_large.ali") optional true into msalargedatafilt
+    //file("*_bmge_large.ali") optional true into msalargedatafilt
 
     shell:
     """
     #!/usr/bin/env bash
-    nseq=\$( grep -c "^>" !{msa} )
-    if [ "\${nseq}" -ge '200' ]
-    then
-        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge_large.ali
-    elif [ "\${nseq}" -gt '3' ]
-    then
-        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
-    fi
+    #nseq=\$( grep -c "^>" !{msa} )
+    #if [ "\${nseq}" -ge '200' ]
+    #then
+    #    BMGE -i !{msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge_large.ali
+    #elif [ "\${nseq}" -gt '3' ]
+    #then
+    BMGE -i !{msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
+    #fi
     """
 }
 
-process filtering_alignment_rooted {
-    publishDir "$myDir/msa/", mode: 'copy', pattern: 'msa/*.ali'
+/*process filtering_alignment_rooted {
+    publishDir "$myDir/msa/all_virus/", mode: 'copy', pattern: 'msa/*.ali'
     cache 'deep'
+    tag "${msa}"
 
     input:
     //set fastaID, file(msa) from msaserotype
-    set file(msa), file(association) from msadata_rooted
+    file(msa) from msadata_rooted
 
     output:
     //set fastaID, file("*_bmge.ali") into msafiltserotype
-    set file("*_bmge.ali"), file(association) optional true into msadatafilt_rooted mode flatten
-    set file("*_bmge_large.ali"), file(association) optional true into msalargedatafilt_rooted mode flatten
+    file("*_bmge.ali") optional true into msadatafilt_rooted mode flatten
+    file("*_bmge_large.ali") optional true into msalargedatafilt_rooted mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    mkdir -p msa
     nseq=\$( grep -c "^>" !{msa} )
     if [ "\${nseq}" -ge '200' ]
     then
@@ -1079,83 +1182,319 @@ process filtering_alignment_rooted {
     """
 }
 
-process phylogeny {
-    publishDir "$myDir/phylogeny/", mode: 'copy'
+process filtering_alignment_complete_rooted {
+    publishDir "$myDir/msa/complete/", mode: 'copy', pattern: 'msa/*.ali'
     cache 'deep'
+    tag "${msa}"
+
+    input:
+    //set fastaID, file(msa) from msaserotype
+    file(msa) from msadata_complete_rooted
+
+    output:
+    //set fastaID, file("*_bmge.ali") into msafiltserotype
+    file("*_bmge.ali") optional true into msadatafilt_complete_rooted mode flatten
+    file("*_bmge_large.ali") optional true into msalargedatafilt_complete_rooted mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    nseq=\$( grep -c "^>" !{msa} )
+    if [ "\${nseq}" -ge '200' ]
+    then
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge_large.ali
+    elif [ "\${nseq}" -gt '3' ]
+    then
+        BMGE -i ${msa} -t DNA -m ID -h 1 -g !{params.conserved_position} -w 1 -b 1 -of !{msa.baseName}_bmge.ali
+    fi
+    """
+}*/
+
+process phylogeny {
+    tag "${msafilt}"
+    publishDir "$myDir/phylogeny/all_virus/", mode: 'copy'
 
     input:
     //set fastaID, file(msafilt) from msafiltserotype
     file(msafilt) from msadatafilt
 
     output:
-    file("*.treefile") into phylogenyserotype //mode flatten
+    file("*.treefile") into phylogeny //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    iqtree -m GTR+I+G4 -s !{msafilt}
+    iqtree -m GTR+I+G4 -s !{msafilt} -redo
     """
 }
 
-process phylogeny_large {
-    publishDir "$myDir/phylogeny/", mode: 'copy'
-    cpus params.cpus_phylogeny
+// process phylogeny_large {
+//     tag "${msafilt}"
+//     publishDir "$myDir/phylogeny/all_virus/", mode: 'copy'
+//     cpus params.cpus_phylogeny
+
+
+//     input:
+//     //set fastaID, file(msafilt) from msafiltserotype
+//     file(msafilt) from msalargedatafilt
+
+//     output:
+//     file("*.treefile") into phylogeny_large //mode flatten
+
+//     shell:
+//     """
+//     #!/usr/bin/env bash
+//     iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt} -redo
+//     """
+// }
+
+process phylogeny_complete {
+    tag "${msafilt}"
+    publishDir "$myDir/phylogeny/complete_virus/", mode: 'copy'
+
+    input:
+    //set fastaID, file(msafilt) from msafiltserotype
+    file(msafilt) from msadatafilt_complete
+
+    output:
+    file("*.treefile") into phylogeny_complete //mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    iqtree -m GTR+I+G4 -s !{msafilt} -redo
+    """
+}
+
+// process phylogeny_complete_large {
+//     tag "${msafilt}"
+//     publishDir "$myDir/phylogeny/complete_virus/", mode: 'copy'
+//     cpus params.cpus_phylogeny
+
+//     input:
+//     //set fastaID, file(msafilt) from msafiltserotype
+//     file(msafilt) from msalargedatafilt_complete
+
+//     output:
+//     file("*.treefile") into phylogeny_complete_large //mode flatten
+
+//     shell:
+//     """
+//     #!/usr/bin/env bash
+//     iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt} -redo
+//     """
+// }
+
+/*process phylogeny_rooted {
+    tag "${msafilt}"
+    publishDir "$myDir/phylogeny/all_virus/", mode: 'copy'
     cache 'deep'
 
     input:
     //set fastaID, file(msafilt) from msafiltserotype
-    file(msafilt) from msalargedatafilt
+    file(msafilt) from msadatafilt_rooted
+    file(association) from association_rooted.toList()
 
     output:
-    file("*.treefile") into phylogenyserotype_large //mode flatten
+    file("*_final.treefile") into phylogeny_rooted //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt}
-    """
-}
-
-process phylogeny_rooted {
-    publishDir "$myDir/phylogeny/", mode: 'copy'
-    cache 'deep'
-
-    input:
-    //set fastaID, file(msafilt) from msafiltserotype
-    set file(msafilt), file(association) from msadatafilt_rooted
-
-    output:
-    file("*_final.treefile") into phylogenyserotype_rooted //mode flatten
-
-    shell:
-    """
-    #!/usr/bin/env bash
-    iqtree -m GTR+I+G4 -s !{msafilt}
+    iqtree -m GTR+I+G4 -s !{msafilt} -redo
     name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
     gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
     """
 }
 
 process phylogeny_rooted_large {
-    publishDir "$myDir/phylogeny/", mode: 'copy'
+    tag "${msafilt}"
+    publishDir "$myDir/phylogeny/all_virus/", mode: 'copy'
     cpus params.cpus_phylogeny
     cache 'deep'
 
     input:
     //set fastaID, file(msafilt) from msafiltserotype
-    set file(msafilt), file(association) from msalargedatafilt_rooted
+    file(msafilt) from msalargedatafilt_rooted
+    file(association) from association_large_rooted.toList()
 
     output:
-    file("*.treefile") into phylogenyserotype_large_rooted //mode flatten
+    file("*.treefile") into phylogeny_large_rooted //mode flatten
 
     shell:
     """
     #!/usr/bin/env bash
-    iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt}
+    iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt} -redo
     name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
     gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
     """
 }
+
+
+process phylogeny_complete_rooted {
+    tag "${msafilt}"
+    publishDir "$myDir/phylogeny/complete_virus/", mode: 'copy'
+    cache 'deep'
+
+    input:
+    //set fastaID, file(msafilt) from msafiltserotype
+    file(msafilt) from msadatafilt_complete_rooted
+    file(association) from association_complete_rooted.toList()
+
+    output:
+    file("*_final.treefile") into phylogeny_complete_rooted //mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    iqtree -m GTR+I+G4 -s !{msafilt} -redo
+    name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
+    gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
+    """
+}
+
+process phylogeny_complete_rooted_large {
+    tag "${msafilt}"
+    publishDir "$myDir/phylogeny/complete_virus/", mode: 'copy'
+    cpus params.cpus_phylogeny
+    cache 'deep'
+
+    input:
+    //set fastaID, file(msafilt) from msafiltserotype
+    file(msafilt) from msalargedatafilt_complete_rooted
+    file(association) from association_large_complete_rooted.toList()
+
+    output:
+    file("*.treefile") into phylogeny_large_complete_rooted //mode flatten
+
+    shell:
+    """
+    #!/usr/bin/env bash
+    iqtree -m GTR+I+G4 -nt !{params.cpus_phylogeny} -s !{msafilt} -redo
+    name=\$(echo !{msafilt.baseName} | cut -f 1,2 -d "_")
+    gotree reroot outgroup -r -i !{msafilt.baseName}.ali.treefile  -l \${name}_association.txt > !{msafilt.baseName}_final.treefile
+    """
+}*/
+// trees = Channel.create()
+// mixedtrees = Channel.create()
+// mixedtrees.concat(phylogeny_complete_large, phylogeny_complete )
+//           .into { trees }
+
+// We rename the tips of the trees
+// in order to be able to compare them
+process RenameTips {
+    publishDir "$myDir/phylogeny/complete_virus/renamed", mode: 'copy'
+
+    input:
+    file(tree) from phylogeny_complete//trees //.filter{ it.size()>0 }
+    
+    output:
+    file("*_renamed.nhx") into renamed
+
+    shell:
+    '''
+    gotree rename -e '_NODE_(\\d)_.*$' -b '_$1' -i !{tree} -o !{tree.baseName}_renamed.nhx
+    '''
+}
+
+// We split file name
+// Then we group by file base name
+// Then for each file, we create a hash map with key= either <contigs, 3d, p1, vp1, or 5utr>
+//                                           and value=<tree file>
+// We finaly keep only samples for which we have all the data : contigs, 3d, p1, vp1, and 5utr
+treeinfos=renamed
+    .map{it -> infos=it.baseName.split("_"); [infos[0], [infos[1], it]];}
+    .groupTuple(by: 0)
+    .map{infos -> resmap=[:].withDefault { [] }; infos[1].each { resmap[it[0]] = it[1]}; [infos[0], resmap]}
+    .filter{it[1].size() == 5}
+ 
+ 
+
+// We compare the trees
+process CompareTrees {
+    tag "${sample}"
+    
+    publishDir 'results/', mode: 'copy'
+
+    input:
+    set val(sample), filemap from treeinfos
+
+    output:
+    file("*_stats.txt") into outstats
+    set val(sample), file("${sample}_vp1.nw"), file("${sample}_3d.nw"), file("${sample}_5utr.nw"), file("*3d_recombinants.txt"), file("*5utr_recombinants.txt") into recombs
+
+    shell:
+    '''
+    cat !{filemap['vp1']}  > !{sample}_vp1.nw
+    cat !{filemap['5utr']} > !{sample}_5utr.nw
+    cat !{filemap['3d']} > !{sample}_3d.nw
+
+    gotree compare edges -i <(gotree collapse length -l 0.0002 -i !{sample}_vp1.nw) -m --moved-taxa -c <(gotree collapse length -l 0.0002 -i !{sample}_3d.nw)   | tail -n+2 | awk '{print "vp1_3d\t" $0}'   > vp1_3d
+    gotree compare edges -i <(gotree collapse length -l 0.0002 -i !{sample}_vp1.nw) -m --moved-taxa -c <(gotree collapse length -l 0.0002 -i !{sample}_5utr.nw) | tail -n+2 | awk '{print "vp1_5utr\t" $0}' > vp1_5utr
+    cat vp1_3d vp1_5utr | awk -F '\t' '{if($11>0){print "!{sample}\t" $1 "\t" $8 "\t" $11 "\t" $12}}' > !{sample}_stats.txt
+
+    awk -F '\t' '{if($11>0){gsub(/,/,"\\n",$12);print $12}}' vp1_3d   | sed s/^[+-]// | sort -u > !{sample}_vp1_3d_recombinants.txt
+    awk -F '\t' '{if($11>0){gsub(/,/,"\\n",$12);print $12}}' vp1_5utr | sed s/^[+-]// | sort -u > !{sample}_vp1_5utr_recombinants.txt
+    '''
+}
+
+process genITolAnnot {
+    tag "${sample}"
+    publishDir 'results/', mode: 'copy'
+
+    input:
+    set val(sample), file(vp1), file(t3d), file(t5utr), file(recomb3d), file(recomb5utr) from recombs
+    
+    output:
+    set val(sample), file(vp1), file(t3d), file(t5utr), file("${recomb3d}_itol.txt"), file("${recomb5utr}_itol.txt") into itolannots
+
+    shell:
+    '''
+    cat > itol.txt << EOF
+    DATASET_BINARY
+    SEPARATOR COMMA
+
+    DATASET_LABEL,recombinants
+    COLOR,#ff0000
+    FIELD_SHAPES,3
+    FIELD_LABELS,f1
+
+    DATA
+    EOF
+    cat itol.txt <(awk '{print $0",1"}' !{recomb3d})  > !{recomb3d}_itol.txt
+    cat itol.txt <(awk '{print $0",1"}' !{recomb5utr})> !{recomb5utr}_itol.txt
+    '''
+}
+
+process uploadItol {
+    tag "${sample}"
+
+    input:
+    set val(sample), file(vp1), file(t3d), file(t5utr), file(annot3d), file(annot5utr) from itolannots
+    
+    output:
+    file("urls.txt") into itolurls
+
+    shell:
+    '''
+    URLvp13d=$(gotree upload itol -i !{vp1} !{annot3d})
+    URL3d=$(gotree upload itol -i !{t3d} !{annot3d})
+    URLvp15utr=$(gotree upload itol -i !{vp1} !{annot5utr})
+    URL5utr=$(gotree upload itol -i !{t5utr} !{annot5utr})
+
+    echo !{sample} $URLvp13d $URL3d $URLvp15utr $URL5utr > urls.txt
+    '''
+}
+
+itolurls.collectFile(name: 'urls.txt').subscribe{
+    file -> file.copyTo(myDir.resolve(file.name))
+}
+
+outstats.collectFile(name: 'full_moves.fa').subscribe{
+    file -> file.copyTo(myDir.resolve(file.name))
+}
+
+
 
 println "Project : $workflow.projectDir"
 //println "Git info: $workflow.repository - $workflow.revision [$workflow.commitId]"

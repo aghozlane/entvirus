@@ -84,6 +84,8 @@ def get_arguments():
                         default=100, help='Segment increment size (default 100)')
     parser.add_argument('-sc', dest='scale_window', type=int, default=1000,
                         help='Scale for heatmap presentation (default 1000)')
+    parser.add_argument('-st', dest='step', type=int, default=10,
+                        help='Scale for heatmap presentation (default 10)')
     parser.add_argument('-t', dest='temp_dir', type=isdir, required=True,
                         help='Temporary output dir')
     parser.add_argument('-n', dest='num_cpu', type=int, default=mp.cpu_count(),
@@ -103,9 +105,6 @@ def get_arguments():
                         default='simulation.png', help='Output png file')
     parser.add_argument('-osm', dest='output_sim_matrix', type=str,
                         default='matrix_simuation.tsv', help='Output matrix for simulation')
-    parser.add_argument('-osbm', dest='output_sim_binmatrix', type=str,
-                        default='matrix_simuation.tsv', help='Output binary matrix for simulation')
-
     return parser.parse_args()
 
 
@@ -127,7 +126,7 @@ def alignment_parameters(aligned_multifasta_file, segment_size, segment_incremen
             size_alignment = len(seq)
             assert(segment_size < size_alignment)
     except IOError:
-        sys.exit("Error cannot open {0}".format(aligned_multifasta_file))
+        sys.exit("Ali_param: Error cannot open {0}".format(aligned_multifasta_file))
     except AssertionError:
         sys.exit("Error segment size is superior to aligment size: {} {}"
                  .format(segment_size, size_alignment))
@@ -178,7 +177,7 @@ def fasta_seq(multifasta_file):
                 if len(header) > 0 and len(seq) > 0:
                     yield [header, seq]
     except IOError:
-        sys.exit("Error cannot open {}".format(multifasta_file))
+       sys.exit("Fasta_seq:Error cannot open {}".format(multifasta_file))
 
 
 def extract_segment(aligned_multifasta_file, segment, temp_dir, segment_size,
@@ -229,9 +228,9 @@ def extract_segment(aligned_multifasta_file, segment, temp_dir, segment_size,
                             name, support_threshold))
                 list_run.remove(cmd)
                 list_tree.remove("{0}".format(name))
-                segment.remove(rm_seg)
+                #segment.remove(rm_seg)
     except IOError:
-        sys.exit("Error cannot open {0}".format(aligned_multifasta_file))
+       sys.exit("extract_segment: Error cannot open {0}".format(aligned_multifasta_file))
     except AssertionError:
         print(fasta)
         print(seg)
@@ -303,42 +302,63 @@ def parse_segment_distance(list_seg_dist, segment, segment_increment_size, size_
     while i < len(segment):
         list_interest_segment = get_interest_segment(posit, segment)
         # print("posit {} num_segment {}".format(posit, len(list_interest_segment)))
+        # print(list_interest_segment)
         val = np.zeros(len(list_interest_segment))
         j = 0
         for seg in segment:
             val = []
             for seg_int in list_interest_segment:
+                # print("Segment d'interet")
+                # print(seg_int)
+                # print(seg)
                 name = "{}segment_{}_{}_segment_{}_{}.dist".format(temp_dir, seg_int[0], seg_int[1], seg[0], seg[1])
+                name_oposit = "{}segment_{}_{}_segment_{}_{}.dist".format(temp_dir, seg[0], seg[1], seg_int[0], seg_int[1])
                 # print(name)
                 if os.path.isfile(name):
+                    # dat = open(name, "rt").read().splitlines()[0]
+                    # print(dat)
                     val.append(1.0 - float(open(name, "rt").read().splitlines()[0]))
                     # print("posit {} segment_{}_{} file = {}".format(posit, seg_int[0], seg_int[1], name))
-            # print(val)
-            # print(np.mean(val))
-            # print(i, j)
+                elif os.path.isfile(name_oposit):
+                    # dat = open(name_oposit, "rt").read().splitlines()[0]
+                    # print(dat)
+                    val.append(1.0 - float(open(name_oposit, "rt").read().splitlines()[0]))
+                # else:
+                #     print("0.0")
+                #     val.append(0.0)
+            
             if len(val) > 0:
                 # pass
                 matrix_dist[i][j] = np.mean(val)
+            # print("Ecriture dans la matrice")
+            # print(i, j)
+            # print(val)
+            # print(np.mean(val))
             j+=1
         # print(posit)
         posit = posit + segment_increment_size
         i += 1
+        # print("next")
     return matrix_dist
 
 
 def plot_heatmap(matrix_dist, output_file, segment_increment_size,
-                 size_alignment, count_seq, scale_window, min_value, max_value,
-                 vmin=0.0, vmax=1.0):
+                 size_alignment, count_seq, scale_window, step, min_value,
+                 max_value, vmin=0.0, vmax=1.0):
     """Plot half heatmap
     """
     fig, ax = plt.subplots()
     # im = ax.imshow(matrix_dist)
     mask = np.zeros_like(matrix_dist, dtype=np.bool)
     mask[np.tril_indices_from(mask)] = True
-    sns_plot = sns.heatmap(matrix_dist, xticklabels=10, yticklabels=10,
-                           square=True, mask=mask, vmin=vmin, vmax=vmax)
+    # print(mask)
+    sns_plot = sns.heatmap(matrix_dist, xticklabels=step, yticklabels=step,
+                           mask=mask, vmin=vmin, vmax=vmax)
+    #square=True,
     sns_plot.invert_yaxis()
     scale_labels = np.arange(0, size_alignment + segment_increment_size, scale_window)
+    print("scale labels")
+    print(scale_labels)
     sns_plot.set_xticklabels(scale_labels)
     sns_plot.set_yticklabels(scale_labels)
     #sns.axes_style("white")
@@ -368,12 +388,15 @@ def plot_heatmap(matrix_dist, output_file, segment_increment_size,
     #plt.show()
     #plt.savefig(output_file, dpi=500)
 
+
 def run_computation(aligned_multifasta_file, segment_size, segment_increment_size,
-    size_alignment, count_seq, scale_window, temp_dir, phylogeny_software, support_threshold,
+    size_alignment, count_seq, scale_window, step, temp_dir, phylogeny_software, support_threshold,
     num_cpu, output_file, output_zoomed_file, matrix_file, binmatrix_file, vmin=0.0):
     # Extract alignment
     segment = divide_alignment(size_alignment, segment_size,
                                segment_increment_size)
+    print("Segment:")
+    print(segment)
     list_run, list_tree, segment = extract_segment(
         aligned_multifasta_file, segment, temp_dir, segment_size,
         support_threshold, phylogeny_software)
@@ -395,12 +418,14 @@ def run_computation(aligned_multifasta_file, segment_size, segment_increment_siz
     # Plot matrix
     print("Plot matrix")
     plot_heatmap(matrix_dist, output_file, segment_increment_size,
-                 size_alignment, count_seq, scale_window, min_value, max_value)
+                 size_alignment, count_seq, scale_window, step, min_value, max_value)
+    print("vmin {0}".format(vmin))
     if vmin > 0.0 and vmin < 1.0:
         np.savetxt(binmatrix_file, (matrix_dist >= vmin).astype(int), delimiter="\t")
         plot_heatmap(matrix_dist, output_zoomed_file, segment_increment_size,
-                 size_alignment, count_seq, scale_window, vmin, max_value, vmin, max_value)
+                 size_alignment, count_seq, scale_window, step, vmin, max_value, vmin, max_value)
     return max_value
+
 
 def main():
     """Main program
@@ -410,10 +435,12 @@ def main():
     size_alignment, count_seq = alignment_parameters(
         args.aligned_multifasta_file, args.segment_size,
         args.segment_increment_size)
+    print("Size alignment {0} nt".format(size_alignment))
     # Run simulation
     print("Let's go for simulation first")
     output_name = args.temp_dir + os.path.splitext(os.path.basename(args.aligned_multifasta_file))[0]
     if args.tree_file:
+        # pass
         run_command("{4}/seq-gen -l {2} -of -m GTR {0} | mafft  --thread {3} "
                     "--maxiterate 1000 --localpair - > {1}.ali".format(
                         args.tree_file, output_name, size_alignment,
@@ -440,8 +467,9 @@ def main():
         os.mkdir(temp_dir)
     vmin = run_computation(output_name + ".ali", args.segment_size,
         args.segment_increment_size, size_alignment, count_seq, args.scale_window,
-        temp_dir, args.phylogeny_software, args.support_threshold, args.num_cpu,
-        args.sim_png, args.res_zoomed_png, args.output_sim_matrix, args.output_sim_binmatrix)
+        args.step, temp_dir, args.phylogeny_software, args.support_threshold,
+        args.num_cpu, args.sim_png, args.res_zoomed_png, args.output_sim_matrix,
+        "")
 
     # run computation for real data
     print("Now real data")
@@ -450,8 +478,9 @@ def main():
         os.mkdir(temp_dir)
     run_computation(args.aligned_multifasta_file, args.segment_size,
         args.segment_increment_size, size_alignment, count_seq, args.scale_window,
-        temp_dir, args.phylogeny_software, args.support_threshold, args.num_cpu,
-        args.res_png, args.res_zoomed_png, args.output_matrix, args.output_binmatrix, vmin)
+        args.step, temp_dir, args.phylogeny_software, args.support_threshold, 
+        args.num_cpu, args.res_png, args.res_zoomed_png, args.output_matrix,
+        args.output_binmatrix, vmin)
 
 if __name__ == "__main__":
     main()

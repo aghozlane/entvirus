@@ -140,6 +140,7 @@ def main():
         name = os.path.basename(blast_file).replace("_polston.tsv", "")
         annot_dict = load_annotation(blast_file, name, annot_dict)
     write_annot(annot_dict, db_dict, args.output_file)
+
+
 if __name__ == "__main__":
     main()
-
